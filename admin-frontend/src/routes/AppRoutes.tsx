@@ -5,6 +5,9 @@ import Login from "../pages/auth/Login";
 import Dashboard from "../pages/dashboard/Dashboard";
 import Employees from "../pages/employees/Employees";
 import Categories from "../pages/categories/Categories";
+import Products from "../pages/products/Products";
+import AddProduct from "../pages/products/AddProduct";
+import EditProduct from "../pages/products/EditProduct";
 
 function AppRoutes() {
   return (
@@ -16,7 +19,12 @@ function AppRoutes() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
 
-          <Route path="products" element={<Dashboard />} />
+          <Route path="products">
+            <Route index element={<Products />} />
+            <Route path="new" element={<AddProduct />} />
+            <Route path="/admin/products/:id/edit" element={<EditProduct />} /> 
+          </Route>
+
           <Route path="categories" element={<Categories />} />
           <Route path="orders" element={<Dashboard />} />
           <Route path="customers" element={<Dashboard />} />
