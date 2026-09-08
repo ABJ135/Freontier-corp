@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
@@ -6,6 +6,8 @@ import { ArrowLeft, ImagePlus, Loader2, X } from "lucide-react";
 import { createProduct, uploadProductImage } from "../../services/productApi";
 import { getCategories } from "../../services/categoryApi";
 import type { Category } from "../../types/category";
+import { useTheme } from "../../hooks/useTheme";
+import RichTextEditor from "../../components/RichTextEditor";
 
 interface PendingImage {
   file: File;
@@ -33,7 +35,22 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 const inputClasses =
-  "mt-1.5 w-full rounded-lg border border-[#2A2A34] bg-[#15151C] px-3 py-2.5 text-[#F4F3F1] outline-none placeholder:text-[#5C5B66] transition-colors focus:border-[#3A5CFF] focus:ring-1 focus:ring-[#3A5CFF]/40";
+  "mt-1.5 w-full rounded-lg border border-[#E4E4E9] bg-white px-3 py-2.5 text-[#111114] outline-none placeholder:text-[#9C9CA6] transition-colors focus:border-[#3A5CFF] focus:ring-1 focus:ring-[#3A5CFF]/40 dark:border-[#2A2A34] dark:bg-[#15151C] dark:text-[#F4F3F1] dark:placeholder:text-[#5C5B66]";
+
+// Every image tile — the primary box and each grid thumbnail — shares this
+// shape (a square that fills its parent), per the "all boxes same size"
+// requirement.
+const imageBoxBaseClasses = "relative aspect-square w-full overflow-hidden rounded-lg";
+
+const filledBoxClasses = `${imageBoxBaseClasses} border border-[#E4E4E9] bg-[#F7F7F8] dark:border-[#2A2A34] dark:bg-[#15151C]`;
+
+function addTileClasses(isDraggingOver: boolean) {
+  return `${imageBoxBaseClasses} flex cursor-pointer flex-col items-center justify-center gap-1 border border-dashed text-[11px] transition-colors ${
+    isDraggingOver
+      ? "border-[#3A5CFF] bg-[#EEF1FF] text-[#3A5CFF] dark:bg-[#151A2E]"
+      : "border-[#D5D5DC] text-[#9C9CA6] hover:border-[#3A5CFF] hover:text-[#3A5CFF] dark:border-[#33333F] dark:text-[#5C5B66]"
+  }`;
+}
 
 function Field({
   label,
@@ -46,9 +63,15 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-[#D8D7DE]">{label}</span>
+      <span className="text-sm font-medium text-[#3A3A44] dark:text-[#D8D7DE]">
+        {label}
+      </span>
       {children}
-      {hint && <p className="mt-1.5 text-xs text-[#5C5B66]">{hint}</p>}
+      {hint && (
+        <p className="mt-1.5 text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
+          {hint}
+        </p>
+      )}
     </label>
   );
 }
@@ -63,10 +86,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-[#22222C] bg-[#101014] p-6">
-      <h2 className="text-[15px] font-semibold text-[#F4F3F1]">{title}</h2>
+    <section className="rounded-xl border border-[#E4E4E9] bg-white p-6 dark:border-[#22222C] dark:bg-[#101014]">
+      <h2 className="text-[15px] font-semibold text-[#111114] dark:text-[#F4F3F1]">
+        {title}
+      </h2>
       {description && (
-        <p className="mt-1 text-sm text-[#8B8A96]">{description}</p>
+        <p className="mt-1 text-sm text-[#6B6B76] dark:text-[#8B8A96]">
+          {description}
+        </p>
       )}
       <div className="mt-5 space-y-5">{children}</div>
     </section>
@@ -75,6 +102,10 @@ function Section({
 
 function AddProduct() {
   const navigate = useNavigate();
+  // Keeps the page in sync with the stored theme preference. Once the
+  // Settings toggle exists, it can call setTheme/toggleTheme from this same
+  // hook and every page picks it up automatically.
+  useTheme();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -88,7 +119,9 @@ function AddProduct() {
   const [description, setDescription] = useState("");
 
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isDraggingOverAdd, setIsDraggingOverAdd] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{
@@ -96,6 +129,9 @@ function AddProduct() {
     total: number;
   } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const pendingImagesRef = useRef(pendingImages);
+  pendingImagesRef.current = pendingImages;
 
   useEffect(() => {
     (async () => {
@@ -112,9 +148,10 @@ function AddProduct() {
     })();
 
     return () => {
-      pendingImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      pendingImagesRef.current.forEach((img) =>
+        URL.revokeObjectURL(img.previewUrl),
+      );
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addFiles = (files: FileList | File[]) => {
@@ -136,14 +173,6 @@ function AddProduct() {
     event.target.value = "";
   };
 
-  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
-    event.preventDefault();
-    setIsDraggingOver(false);
-    if (event.dataTransfer.files.length > 0) {
-      addFiles(event.dataTransfer.files);
-    }
-  };
-
   const removePendingImage = (index: number) => {
     setPendingImages((prev) => {
       URL.revokeObjectURL(prev[index].previewUrl);
@@ -151,13 +180,72 @@ function AddProduct() {
     });
   };
 
-  const makePrimary = (index: number) => {
+  // --- Drag to reorder -----------------------------------------------
+  // Any tile (the primary box or a grid thumbnail) can be dragged onto any
+  // other tile. Dropping onto the primary box promotes that image; dropping
+  // a primary image into the grid demotes it.
+  const handleTileDragStart = (index: number) => (event: DragEvent) => {
+    setDraggedIndex(index);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleTileDragOver = (index: number) => (event: DragEvent) => {
+    event.preventDefault();
+    if (draggedIndex === null) return;
+    setDropTargetIndex(index);
+  };
+
+  const handleTileDrop = (index: number) => (event: DragEvent) => {
+    event.preventDefault();
+    setDropTargetIndex(null);
+    if (draggedIndex === null || draggedIndex === index) return;
     setPendingImages((prev) => {
       const next = [...prev];
-      const [chosen] = next.splice(index, 1);
-      next.unshift(chosen);
+      const [moved] = next.splice(draggedIndex, 1);
+      next.splice(index, 0, moved);
       return next;
     });
+    setDraggedIndex(null);
+  };
+
+  const handleTileDragEnd = () => {
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
+  };
+
+  // Empty slots (the "add" tiles) accept two different things: a photo
+  // being reordered from elsewhere in the grid, or new files dragged in
+  // from outside the browser. Same box, either source.
+  const handleSlotDragOver = (index: number) => (event: DragEvent) => {
+    event.preventDefault();
+    if (draggedIndex !== null) {
+      setDropTargetIndex(index);
+    } else {
+      setIsDraggingOverAdd(true);
+    }
+  };
+
+  const handleSlotDrop = (index: number) => (event: DragEvent) => {
+    event.preventDefault();
+    setIsDraggingOverAdd(false);
+    setDropTargetIndex(null);
+
+    if (draggedIndex !== null) {
+      if (draggedIndex !== index) {
+        setPendingImages((prev) => {
+          const next = [...prev];
+          const [moved] = next.splice(draggedIndex, 1);
+          next.splice(index, 0, moved);
+          return next;
+        });
+      }
+      setDraggedIndex(null);
+      return;
+    }
+
+    if (event.dataTransfer.files.length > 0) {
+      addFiles(event.dataTransfer.files);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -200,13 +288,14 @@ function AddProduct() {
       : null;
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
+  const [primaryImage, ...otherImages] = pendingImages;
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] px-6 py-8 pb-28 lg:px-10">
+    <div className="min-h-screen bg-[#F7F7F8] px-6 py-8 pb-28 transition-colors dark:bg-[#0B0B0F] lg:px-10">
       <div className="mx-auto max-w-5xl">
         <button
           onClick={() => navigate("/admin/products")}
-          className="flex items-center gap-2 text-sm text-[#9A99A6] transition-colors hover:text-[#F4F3F1]"
+          className="flex items-center gap-2 text-sm text-[#6B6B76] transition-colors hover:text-[#111114] dark:text-[#9A99A6] dark:hover:text-[#F4F3F1]"
         >
           <ArrowLeft size={16} strokeWidth={1.75} />
           Back to products
@@ -214,17 +303,17 @@ function AddProduct() {
 
         <div className="mt-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-[Space_Grotesk] text-2xl font-bold text-[#F4F3F1]">
+            <h1 className="font-[Space_Grotesk] text-2xl font-bold text-[#111114] dark:text-[#F4F3F1]">
               Add product
             </h1>
-            <p className="mt-1 text-[15px] text-[#9A99A6]">
+            <p className="mt-1 text-[15px] text-[#6B6B76] dark:text-[#9A99A6]">
               Fill in the details below, then create the product.
             </p>
           </div>
         </div>
 
         {formError && (
-          <div className="mt-6 rounded-lg border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+          <div className="mt-6 rounded-lg border border-[#F3C6C6] bg-[#FDECEC] px-4 py-3 text-sm text-[#B3261E] dark:border-[#3A2226] dark:bg-[#241417] dark:text-[#FF8A8A]">
             {formError}
           </div>
         )}
@@ -254,7 +343,7 @@ function AddProduct() {
                     onChange={(e) => setCategoryId(e.target.value)}
                     required
                     disabled={isLoadingCategories}
-                    className={`${inputClasses} [&>option]:bg-[#15151C]`}
+                    className={`${inputClasses} [&>option]:bg-white dark:[&>option]:bg-[#15151C]`}
                   >
                     {isLoadingCategories && <option value="">Loading...</option>}
                     {!isLoadingCategories && categories.length === 0 && (
@@ -280,21 +369,8 @@ function AddProduct() {
                 />
               </Field>
 
-              <Field
-                label="Description"
-                hint="Optional — shown on the product page."
-              >
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Short description"
-                  rows={4}
-                  className={`${inputClasses} resize-none`}
-                />
-              </Field>
-
               {!isLoadingCategories && categories.length === 0 && (
-                <p className="rounded-lg border border-[#3A3221] bg-[#1E1B14] px-3 py-2 text-xs text-[#E4C878]">
+                <p className="rounded-lg border border-[#E9DCA8] bg-[#FBF3DC] px-3 py-2 text-xs text-[#8A6D1B] dark:border-[#3A3221] dark:bg-[#1E1B14] dark:text-[#E4C878]">
                   You need at least one category before you can create a
                   product.
                 </p>
@@ -308,7 +384,7 @@ function AddProduct() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <Field label="Price">
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5B66]">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA6] dark:text-[#5C5B66]">
                       $
                     </span>
                     <input
@@ -325,7 +401,7 @@ function AddProduct() {
                 </Field>
                 <Field label="Compare-at" hint="Optional">
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5B66]">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA6] dark:text-[#5C5B66]">
                       $
                     </span>
                     <input
@@ -352,114 +428,199 @@ function AddProduct() {
                 </Field>
               </div>
               {discountPct !== null && (
-                <p className="text-xs text-[#7FB88A]">
+                <p className="text-xs text-[#2F8F4E] dark:text-[#7FB88A]">
                   Shows as {discountPct}% off compare-at price.
                 </p>
               )}
+            </Section>
+
+            <Section title="Description" description="Optional — shown on the product page.">
+              {/* Editor lives in its own div, unrelated to the media div below. */}
+              <div>
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Short description — use the toolbar for headings and lists."
+                />
+              </div>
             </Section>
 
             <Section
               title="Media"
               description="The first image is used as the primary image in the catalog."
             >
-              <div className="flex flex-wrap gap-3">
-                {pendingImages.map((img, index) => (
-                  <div
-                    key={img.previewUrl}
-                    className="group relative h-24 w-24 shrink-0"
-                  >
-                    <img
-                      src={img.previewUrl}
-                      alt=""
-                      className="h-full w-full rounded-lg object-cover ring-1 ring-[#2A2A34]"
-                    />
-                    {index === 0 ? (
-                      <span className="absolute -top-2 -left-2 rounded-full bg-[#3A5CFF] px-2 py-0.5 text-[10px] font-medium text-white">
-                        Primary
-                      </span>
-                    ) : (
+              {/* Media div: one div for the primary image input, one div for
+                  the grid of the other 8 image slots. 3-column split so the
+                  grid div gets twice the width of the primary div. */}
+              <div className="grid grid-cols-3 gap-6">
+                {/* Div 1: primary image input only */}
+                <div>
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[#9C9CA6] dark:text-[#5C5B66]">
+                    Primary
+                  </p>
+                  {primaryImage ? (
+                    <div
+                      draggable
+                      onDragStart={handleTileDragStart(0)}
+                      onDragEnd={handleTileDragEnd}
+                      onDragOver={handleTileDragOver(0)}
+                      onDrop={handleTileDrop(0)}
+                      className={`group ${filledBoxClasses} cursor-grab active:cursor-grabbing ${
+                        dropTargetIndex === 0 ? "ring-2 ring-[#3A5CFF]" : ""
+                      }`}
+                    >
+                      <img
+                        src={primaryImage.previewUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                       <button
                         type="button"
-                        onClick={() => makePrimary(index)}
-                        className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/70 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={() => removePendingImage(0)}
+                        className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-label="Remove image"
                       >
-                        Make primary
+                        <X size={12} strokeWidth={2.5} />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removePendingImage(index)}
-                      className="absolute -top-2 -right-2 rounded-full bg-[#1A1A22] p-1 text-[#9A99A6] ring-1 ring-[#2A2A34] hover:text-[#FF8A8A]"
-                      aria-label="Remove image"
+                    </div>
+                  ) : (
+                    <label
+                      onDragOver={handleSlotDragOver(0)}
+                      onDragLeave={() => setIsDraggingOverAdd(false)}
+                      onDrop={handleSlotDrop(0)}
+                      className={addTileClasses(isDraggingOverAdd)}
                     >
-                      <X size={12} strokeWidth={2.5} />
-                    </button>
-                  </div>
-                ))}
+                      <ImagePlus size={20} strokeWidth={1.75} />
+                      Add photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleFilesSelected}
+                      />
+                    </label>
+                  )}
+                </div>
 
-                <label
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingOver(true);
-                  }}
-                  onDragLeave={() => setIsDraggingOver(false)}
-                  onDrop={handleDrop}
-                  className={`flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-xs transition-colors ${
-                    isDraggingOver
-                      ? "border-[#3A5CFF] bg-[#151A2E] text-[#3A5CFF]"
-                      : "border-[#2A2A34] text-[#5C5B66] hover:border-[#3A5CFF] hover:text-[#3A5CFF]"
-                  }`}
-                >
-                  <ImagePlus size={18} strokeWidth={1.75} />
-                  Add
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleFilesSelected}
-                  />
-                </label>
+                {/* Div 2: grid of 8 boxes for the other images */}
+                <div className="col-span-2">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[#9C9CA6] dark:text-[#5C5B66]">
+                    Other images
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 8 }).map((_, i) => {
+                      const actualIndex = i + 1;
+                      const img = otherImages[i];
+
+                      if (img) {
+                        return (
+                          <div
+                            key={img.previewUrl}
+                            draggable
+                            onDragStart={handleTileDragStart(actualIndex)}
+                            onDragEnd={handleTileDragEnd}
+                            onDragOver={handleTileDragOver(actualIndex)}
+                            onDrop={handleTileDrop(actualIndex)}
+                            className={`group ${filledBoxClasses} cursor-grab active:cursor-grabbing ${
+                              dropTargetIndex === actualIndex
+                                ? "ring-2 ring-[#3A5CFF]"
+                                : ""
+                            }`}
+                          >
+                            <img
+                              src={img.previewUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePendingImage(actualIndex)}
+                              className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                              aria-label="Remove image"
+                            >
+                              <X size={12} strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      // Every empty slot is a clickable/droppable add tile —
+                      // not just the next one in line.
+                      return (
+                        <label
+                          key={`add-${actualIndex}`}
+                          onDragOver={handleSlotDragOver(actualIndex)}
+                          onDragLeave={() => setIsDraggingOverAdd(false)}
+                          onDrop={handleSlotDrop(actualIndex)}
+                          className={addTileClasses(isDraggingOverAdd)}
+                        >
+                          <ImagePlus size={18} strokeWidth={1.75} />
+                          Add
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleFilesSelected}
+                          />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-[#5C5B66]">
-                Drag images in, or click to browse. Hover a non-primary image
-                to promote it.
+              <p className="mt-3 text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
+                Drag any photo onto another box to reorder, or onto the
+                primary box to swap it in.
               </p>
             </Section>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8 rounded-xl border border-[#22222C] bg-[#101014] p-6">
-              <h2 className="text-[15px] font-semibold text-[#F4F3F1]">
+            <div className="sticky top-8 rounded-xl border border-[#E4E4E9] bg-white p-6 dark:border-[#22222C] dark:bg-[#101014]">
+              <h2 className="text-[15px] font-semibold text-[#111114] dark:text-[#F4F3F1]">
                 Summary
               </h2>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#8B8A96]">Name</dt>
-                  <dd className="max-w-[60%] truncate text-right text-[#F4F3F1]">
+                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">Name</dt>
+                  <dd className="max-w-[60%] truncate text-right text-[#111114] dark:text-[#F4F3F1]">
                     {name || "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#8B8A96]">Category</dt>
-                  <dd className="text-[#F4F3F1]">
+                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
+                    Category
+                  </dt>
+                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
                     {selectedCategory?.name ?? "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#8B8A96]">Price</dt>
-                  <dd className="text-[#F4F3F1]">
+                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
+                    Price
+                  </dt>
+                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
                     {price ? centsToDisplay(priceCents) : "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#8B8A96]">Stock</dt>
-                  <dd className="text-[#F4F3F1]">{stock || "0"} units</dd>
+                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
+                    Stock
+                  </dt>
+                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
+                    {stock || "0"} units
+                  </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#8B8A96]">Images</dt>
-                  <dd className="text-[#F4F3F1]">{pendingImages.length}</dd>
+                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
+                    Images
+                  </dt>
+                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
+                    {pendingImages.length}
+                  </dd>
                 </div>
               </dl>
             </div>
@@ -468,9 +629,9 @@ function AddProduct() {
       </div>
 
       {/* Sticky action bar */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-[#22222C] bg-[#0B0B0F]/95 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 border-t border-[#E4E4E9] bg-white/95 backdrop-blur transition-colors dark:border-[#22222C] dark:bg-[#0B0B0F]/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
-          <p className="text-xs text-[#5C5B66]">
+          <p className="text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
             {uploadProgress
               ? `Uploading image ${uploadProgress.current} of ${uploadProgress.total}...`
               : isSubmitting
@@ -481,7 +642,7 @@ function AddProduct() {
             <button
               type="button"
               onClick={() => navigate("/admin/products")}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-[#9A99A6] hover:text-[#F4F3F1]"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-[#6B6B76] hover:text-[#111114] dark:text-[#9A99A6] dark:hover:text-[#F4F3F1]"
             >
               Cancel
             </button>

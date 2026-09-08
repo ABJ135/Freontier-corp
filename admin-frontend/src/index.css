@@ -1,24 +1,122 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap");
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", sans-serif;
   --font-display: "Space Grotesk", sans-serif;
 
-  --color-bg: #121218;
-  --color-bg-panel: #1A1A22;
-  --color-bg-hover: #22222C;
-  --color-bg-border: #22222C;
+  --color-bg: var(--bg);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-border: var(--bg-border);
 
-  --color-text-primary: #F4F3F1;
-  --color-text-secondary: #9A99A6;
-  --color-text-muted: #5C5B66;
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
 
-  --color-accent: #3A5CFF;
-  --color-danger: #FF8A8A;
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-bg-hover: var(--danger-bg-hover);
+  --color-danger-border: var(--danger-border);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+}
+
+/* -------------------- Light theme -------------------- */
+:root {
+  --bg: #EEEEF2;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #E4E4EA;
+  --bg-border: #D8D8E0;
+
+  --text-primary: #14141A;
+  --text-secondary: #55545F;
+  --text-muted: #8B8A96;
+
+  --accent: #3A5CFF;
+  --accent-hover: #2C48E0;
+
+  --danger: #D64545;
+  --danger-bg: #FDECEC;
+  --danger-bg-hover: #FADADA;
+  --danger-border: #F0C2C2;
+
+  --success: #1F9254;
+  --success-bg: #E7F6ED;
+  --success-border: #BEE6CD;
+
+  --warning: #B4740E;
+  --warning-bg: #FDF3E2;
+  --warning-border: #F1D9A8;
+}
+
+/* -------------------- Dark theme -------------------- */
+.dark {
+  --bg: #121218;
+  --bg-panel: #1A1A22;
+  --bg-hover: #22222C;
+  --bg-border: #26262F;
+
+  --text-primary: #F4F3F1;
+  --text-secondary: #9A99A6;
+  --text-muted: #5C5B66;
+
+  --accent: #3A5CFF;
+  --accent-hover: #5273FF;
+
+  --danger: #FF8A8A;
+  --danger-bg: #241417;
+  --danger-bg-hover: #2E181C;
+  --danger-border: #3A2226;
+
+  --success: #4ADE94;
+  --success-bg: #122019;
+  --success-border: #1F3A2A;
+
+  --warning: #F5B54D;
+  --warning-bg: #221A0F;
+  --warning-border: #3A2C16;
 }
 
 body {
   margin: 0;
-  background-color: #121218;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Smooth theme transitions instead of an abrupt flash */
+body,
+.dark body,
+* {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Subtle scrollbar theming so it doesn't look out of place either theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

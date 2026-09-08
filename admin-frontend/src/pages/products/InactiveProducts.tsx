@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { Archive, Pencil, Plus, Trash2 } from "lucide-react";
-import { deleteProduct, getProducts } from "../../services/productApi";
-import { useAuthStore } from "../../store/authStore";
+import { Undo2, Trash2 } from "lucide-react";
+import {
+  getInactiveProducts,
+  restoreInactiveProduct,
+  removeInactiveProduct,
+  purgeInactiveProducts,
+} from "../../services/productApi";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import type { Product } from "../../types/product";
 
@@ -26,25 +29,26 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function Products() {
-  const { admin } = useAuthStore();
-  const isAdmin = admin?.role === "ADMIN";
-  const navigate = useNavigate();
-
+function InactiveProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
 
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [isDeletingOne, setIsDeletingOne] = useState(false);
+
+  const [showPurgeDialog, setShowPurgeDialog] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
 
   const loadProducts = async () => {
     setIsLoadingList(true);
     setListError(null);
     try {
-      setProducts(await getProducts());
+      setProducts(await getInactiveProducts());
     } catch (err) {
-      setListError(extractErrorMessage(err, "Could not load products."));
+      setListError(extractErrorMessage(err, "Could not load inactive products."));
     } finally {
       setIsLoadingList(false);
     }
@@ -54,17 +58,27 @@ function Products() {
     loadProducts();
   }, []);
 
-  const goToEdit = (product: Product) => {
-    navigate(`/admin/products/${product.id}/edit`, { state: { product } });
+  const handleRestore = async (product: Product) => {
+    setRestoringId(product.id);
+    setListError(null);
+
+    try {
+      await restoreInactiveProduct(product.id);
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    } catch (err) {
+      setListError(extractErrorMessage(err, "Could not restore product."));
+    } finally {
+      setRestoringId(null);
+    }
   };
 
-  const confirmDelete = async () => {
+  const confirmDeleteOne = async () => {
     if (!deleteTarget) return;
     setIsDeletingOne(true);
     setListError(null);
 
     try {
-      await deleteProduct(deleteTarget.id);
+      await removeInactiveProduct(deleteTarget.id);
       setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch (err) {
@@ -74,53 +88,58 @@ function Products() {
     }
   };
 
+  const confirmPurgeAll = async () => {
+    setIsPurging(true);
+    setListError(null);
+
+    try {
+      await purgeInactiveProducts();
+      setProducts([]);
+      setShowPurgeDialog(false);
+    } catch (err) {
+      setListError(extractErrorMessage(err, "Could not delete all products."));
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   return (
     <div className="px-4 py-6 sm:px-10 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">
-            Products
+          <h1 className="font-[Space_Grotesk] text-xl font-bold text-[#F4F3F1] sm:text-2xl">
+            Inactive Products
           </h1>
-          <p className="mt-1 text-sm text-text-secondary sm:text-[15px]">
-            Manage your catalog.
-            {!isAdmin && " Only admins can delete a product."}
+          <p className="mt-1 text-sm text-[#9A99A6] sm:text-[15px]">
+            Products that have been soft-deleted.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link
-            to="/admin/products/inactive"
-            className="flex items-center justify-center gap-2 rounded-md border border-bg-border px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-          >
-            <Archive size={16} strokeWidth={1.75} />
-            View inactive
-          </Link>
-
-          <Link
-            to="/admin/products/new"
-            className="flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover active:scale-[0.98]"
-          >
-            <Plus size={16} strokeWidth={2} />
-            Add product
-          </Link>
-        </div>
+        <button
+          onClick={() => setShowPurgeDialog(true)}
+          disabled={isLoadingList || products.length === 0}
+          className="flex items-center justify-center gap-2 rounded-md border border-[#3A1F1F] bg-[#2A1616] px-4 py-2.5 text-sm font-medium text-[#FF8A8A] transition-colors hover:bg-[#3A1F1F] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Trash2 size={16} strokeWidth={1.75} />
+          Delete all
+        </button>
       </div>
 
       {listError && (
-        <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
+        <div className="mt-6 rounded-md border border-[#3A1F1F] bg-[#2A1616] px-4 py-3 text-sm text-[#FF8A8A]">
           {listError}
         </div>
       )}
 
       {isLoadingList && (
-        <div className="mt-8 py-10 text-center text-sm text-text-muted">
-          Loading products...
+        <div className="mt-8 py-10 text-center text-sm text-[#5C5B66]">
+          Loading inactive products...
         </div>
       )}
 
       {!isLoadingList && !listError && products.length === 0 && (
-        <div className="mt-8 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center">
-          <p className="text-sm text-text-muted">No products yet.</p>
+        <div className="mt-8 rounded-lg border border-dashed border-[#22222C] px-6 py-14 text-center">
+          <p className="text-sm text-[#5C5B66]">No inactive products.</p>
         </div>
       )}
 
@@ -134,7 +153,7 @@ function Products() {
               return (
                 <div
                   key={product.id}
-                  className="rounded-lg border border-bg-border bg-bg-panel p-4"
+                  className="rounded-lg border border-[#22222C] bg-[#1A1A22] p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
@@ -145,20 +164,20 @@ function Products() {
                           className="h-12 w-12 shrink-0 rounded-md object-cover"
                         />
                       ) : (
-                        <div className="h-12 w-12 shrink-0 rounded-md bg-bg-hover" />
+                        <div className="h-12 w-12 shrink-0 rounded-md bg-[#22222C]" />
                       )}
 
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-text-primary">
+                        <p className="truncate font-medium text-[#F4F3F1]">
                           {product.name}
                         </p>
-                        <p className="mt-0.5 truncate text-xs text-text-secondary">
+                        <p className="mt-0.5 truncate text-xs text-[#9A99A6]">
                           {product.sku}
                         </p>
-                        <p className="mt-0.5 truncate text-xs text-text-secondary">
+                        <p className="mt-0.5 truncate text-xs text-[#9A99A6]">
                           {product.category?.name ?? "—"}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-3 text-xs text-text-secondary">
+                        <div className="mt-1.5 flex items-center gap-3 text-xs text-[#9A99A6]">
                           <span>${centsToDollarsInput(product.priceCents)}</span>
                           <span>Stock: {product.stock}</span>
                         </div>
@@ -167,21 +186,20 @@ function Products() {
 
                     <div className="flex shrink-0 items-center gap-1">
                       <button
-                        onClick={() => goToEdit(product)}
-                        className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                        aria-label={`Edit ${product.name}`}
+                        onClick={() => handleRestore(product)}
+                        disabled={restoringId === product.id}
+                        className="rounded-md p-2 text-[#9A99A6] hover:bg-[#22222C] hover:text-[#F4F3F1] disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Restore ${product.name}`}
                       >
-                        <Pencil size={16} strokeWidth={1.75} />
+                        <Undo2 size={16} strokeWidth={1.75} />
                       </button>
-                      {isAdmin && (
-                        <button
-                          onClick={() => setDeleteTarget(product)}
-                          className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-danger"
-                          aria-label={`Delete ${product.name}`}
-                        >
-                          <Trash2 size={16} strokeWidth={1.75} />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setDeleteTarget(product)}
+                        className="rounded-md p-2 text-[#9A99A6] hover:bg-[#22222C] hover:text-[#FF8A8A]"
+                        aria-label={`Delete ${product.name}`}
+                      >
+                        <Trash2 size={16} strokeWidth={1.75} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -190,9 +208,9 @@ function Products() {
           </div>
 
           {/* Desktop / tablet: table */}
-          <div className="mt-6 hidden overflow-hidden rounded-lg border border-bg-border sm:block">
+          <div className="mt-6 hidden overflow-hidden rounded-lg border border-[#22222C] sm:block">
             <table className="w-full text-left text-sm">
-              <thead className="bg-bg-panel text-text-secondary">
+              <thead className="bg-[#1A1A22] text-[#9A99A6]">
                 <tr>
                   <th className="px-4 py-3 font-medium">Image</th>
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -210,7 +228,7 @@ function Products() {
                   return (
                     <tr
                       key={product.id}
-                      className="border-t border-bg-border text-text-primary"
+                      className="border-t border-[#22222C] text-[#F4F3F1]"
                     >
                       <td className="px-4 py-3">
                         {thumb ? (
@@ -220,12 +238,12 @@ function Products() {
                             className="h-10 w-10 rounded-md object-cover"
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded-md bg-bg-hover" />
+                          <div className="h-10 w-10 rounded-md bg-[#22222C]" />
                         )}
                       </td>
                       <td className="px-4 py-3">{product.name}</td>
-                      <td className="px-4 py-3 text-text-secondary">{product.sku}</td>
-                      <td className="px-4 py-3 text-text-secondary">
+                      <td className="px-4 py-3 text-[#9A99A6]">{product.sku}</td>
+                      <td className="px-4 py-3 text-[#9A99A6]">
                         {product.category?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
@@ -235,21 +253,20 @@ function Products() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => goToEdit(product)}
-                            className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-                            aria-label={`Edit ${product.name}`}
+                            onClick={() => handleRestore(product)}
+                            disabled={restoringId === product.id}
+                            className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#F4F3F1] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label={`Restore ${product.name}`}
                           >
-                            <Pencil size={16} strokeWidth={1.75} />
+                            <Undo2 size={16} strokeWidth={1.75} />
                           </button>
-                          {isAdmin && (
-                            <button
-                              onClick={() => setDeleteTarget(product)}
-                              className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-danger"
-                              aria-label={`Delete ${product.name}`}
-                            >
-                              <Trash2 size={16} strokeWidth={1.75} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setDeleteTarget(product)}
+                            className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#FF8A8A]"
+                            aria-label={`Delete ${product.name}`}
+                          >
+                            <Trash2 size={16} strokeWidth={1.75} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -264,13 +281,22 @@ function Products() {
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title="Delete product"
-        message={`Delete "${deleteTarget?.name}"? It will be moved to inactive products.`}
+        message={`Delete "${deleteTarget?.name}" permanently? This can't be undone.`}
         isLoading={isDeletingOne}
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
+        onConfirm={confirmDeleteOne}
+      />
+
+      <ConfirmDialog
+        isOpen={showPurgeDialog}
+        title="Delete all inactive products"
+        message={`Permanently delete all ${products.length} inactive products? This can't be undone.`}
+        isLoading={isPurging}
+        onCancel={() => setShowPurgeDialog(false)}
+        onConfirm={confirmPurgeAll}
       />
     </div>
   );
 }
 
-export default Products;
+export default InactiveProducts;

@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
@@ -6,7 +7,10 @@ import {
   ShoppingCart,
   Users,
   UserCog,
+  Settings,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import type { AdminRole } from "../types/auth";
@@ -31,6 +35,33 @@ const NAV_ITEMS: NavItem[] = [
 function DashboardLayout() {
   const { admin, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Close the drawer whenever the route changes (covers programmatic
+  // navigation too, e.g. the logout button's navigate() call below).
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // Lock background scroll while the drawer is open, and let Escape close it.
+  useEffect(() => {
+    if (!isMobileNavOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isMobileNavOpen]);
 
   const handleLogout = () => {
     logout();
@@ -41,30 +72,66 @@ function DashboardLayout() {
     (item) => !item.roles || (admin && item.roles.includes(admin.role)),
   );
 
+  const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
+    `flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm transition-colors ${
+      isActive
+        ? "border-accent/30 bg-accent/15 text-accent"
+        : "border-transparent text-text-secondary hover:border-bg-border hover:bg-bg-hover hover:text-text-primary"
+    }`;
+
   return (
-    <div className="flex min-h-screen bg-[#121218] font-[Inter]">
+    <div className="flex min-h-screen bg-bg font-[Inter]">
+      {/* Mobile top bar */}
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-bg-border bg-bg-panel px-4 md:hidden">
+        <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-text-secondary">
+          Vikestore
+        </span>
+        <button
+          type="button"
+          onClick={() => setIsMobileNavOpen(true)}
+          aria-label="Open menu"
+          className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+        >
+          <Menu size={20} strokeWidth={1.75} />
+        </button>
+      </div>
+
+      {/* Backdrop */}
+      {isMobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col justify-between border-r border-[#1F1F28] bg-[#1A1A22] px-5 py-8">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col justify-between border-r border-bg-border bg-bg-panel px-5 py-8 shadow-sm transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 md:shadow-sm ${
+          isMobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!isMobileNavOpen}
+      >
         <div>
-          <div className="px-2">
-            <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-[#9A99A6]">
+          <div className="flex items-center justify-between px-2">
+            <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-text-secondary">
               Vikestore
             </span>
+            <button
+              type="button"
+              onClick={() => setIsMobileNavOpen(false)}
+              aria-label="Close menu"
+              className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary md:hidden"
+            >
+              <X size={18} strokeWidth={1.75} />
+            </button>
           </div>
 
           <nav className="mt-10 flex flex-col gap-1">
             {visibleItems.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-[#3A5CFF]/15 text-[#F4F3F1]"
-                      : "text-[#9A99A6] hover:bg-[#22222C] hover:text-[#F4F3F1]"
-                  }`
-                }
-              >
+              <NavLink key={to} to={to} className={navLinkClasses}>
                 <Icon size={18} strokeWidth={1.75} />
                 {label}
               </NavLink>
@@ -72,16 +139,31 @@ function DashboardLayout() {
           </nav>
         </div>
 
-        <div className="border-t border-[#22222C] pt-5">
-          <div className="px-2">
-            <p className="truncate text-sm font-medium text-[#F4F3F1]">
-              {admin?.name}
-            </p>
-            <p className="mt-0.5 text-xs text-[#5C5B66]">{admin?.role}</p>
+        <div className="border-t border-bg-border pt-5">
+          <div className="flex items-center justify-between gap-2 px-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-text-primary">
+                {admin?.name}
+              </p>
+              <p className="mt-0.5 text-xs text-text-muted">{admin?.role}</p>
+            </div>
+            <NavLink
+              to="/admin/settings"
+              title="Settings"
+              className={({ isActive }) =>
+                `shrink-0 rounded-md border p-1.5 transition-colors ${
+                  isActive
+                    ? "border-accent/30 bg-accent/15 text-accent"
+                    : "border-transparent text-text-muted hover:border-bg-border hover:bg-bg-hover hover:text-text-primary"
+                }`
+              }
+            >
+              <Settings size={17} strokeWidth={1.75} />
+            </NavLink>
           </div>
           <button
             onClick={handleLogout}
-            className="mt-4 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#FF8A8A]"
+            className="mt-4 flex w-full items-center gap-3 rounded-md border border-transparent px-3 py-2.5 text-sm text-text-secondary transition-colors hover:border-danger-border hover:bg-danger-bg hover:text-danger"
           >
             <LogOut size={18} strokeWidth={1.75} />
             Log out
@@ -90,7 +172,7 @@ function DashboardLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <Outlet />
       </main>
     </div>

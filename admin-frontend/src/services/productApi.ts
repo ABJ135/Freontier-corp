@@ -7,7 +7,7 @@ import type {
 } from "../types/product";
 
 export async function getProducts(): Promise<Product[]> {
-  const response = await api.get<Product[]>("/products");
+   const response = await api.get<Product[]>("/products");
   return response.data;
 }
 
@@ -47,6 +47,7 @@ export async function uploadProductImage(
     formData,
     { headers: { "Content-Type": "multipart/form-data" } },
   );
+
   return response.data;
 }
 
@@ -58,6 +59,7 @@ export async function setPrimaryProductImage(
     `/products/${productId}/images/${imageId}`,
     { isPrimary: true },
   );
+
   return response.data;
 }
 
@@ -66,4 +68,41 @@ export async function deleteProductImage(
   imageId: string,
 ): Promise<void> {
   await api.delete(`/products/${productId}/images/${imageId}`);
+}
+
+/**
+ * Get all inactive products.
+ * Roles: ADMIN, EMPLOYEE
+ */
+export async function getInactiveProducts(): Promise<Product[]> {
+  const response = await api.get<Product[]>("/products/inactive");
+  return response.data;
+}
+
+/**
+ * Permanently remove all inactive products.
+ * Role: ADMIN
+ */
+export async function purgeInactiveProducts(): Promise<void> {
+  await api.delete("/products/inactive/purge");
+}
+
+/**
+ * Permanently remove one inactive product.
+ * Role: ADMIN
+ */
+export async function removeInactiveProduct(id: string): Promise<void> {
+  await api.delete(`/products/inactive/${id}`);
+}
+
+/**
+ * Restore one inactive product.
+ * Roles: ADMIN, EMPLOYEE
+ */
+export async function restoreInactiveProduct(id: string): Promise<Product> {
+  const response = await api.patch<Product>(
+    `/products/inactive/${id}/restore`,
+  );
+
+  return response.data;
 }

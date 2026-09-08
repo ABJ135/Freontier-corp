@@ -8,6 +8,9 @@ import Categories from "../pages/categories/Categories";
 import Products from "../pages/products/Products";
 import AddProduct from "../pages/products/AddProduct";
 import EditProduct from "../pages/products/EditProduct";
+import InactiveCategories from "../pages/categories/InactiveCategories";
+import SettingsPage from "../pages/settings/SettingsPage";
+import InactiveProducts from "../pages/products/InactiveProducts";
 
 function AppRoutes() {
   return (
@@ -22,16 +25,22 @@ function AppRoutes() {
           <Route path="products">
             <Route index element={<Products />} />
             <Route path="new" element={<AddProduct />} />
-            <Route path="/admin/products/:id/edit" element={<EditProduct />} /> 
+            <Route path="/admin/products/:id/edit" element={<EditProduct />} />
+            <Route path="/admin/products/inactive" element={<InactiveProducts />} />
           </Route>
 
-          <Route path="categories" element={<Categories />} />
+          <Route path="categories" >
+            <Route index element={<Categories />} />
+            <Route path="inactive" element={<InactiveCategories />} />
+          </Route>
+
           <Route path="orders" element={<Dashboard />} />
           <Route path="customers" element={<Dashboard />} />
 
           <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
             <Route path="employees" element={<Employees />} />
           </Route>
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

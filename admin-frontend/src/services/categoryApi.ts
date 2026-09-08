@@ -28,3 +28,20 @@ export async function updateCategory(
 export async function deleteCategory(id: string): Promise<void> {
   await api.delete(`/categories/${id}`);
 }
+
+export async function getInactiveCategories(): Promise<Category[]> {
+  const response = await api.get<Category[]>("/categories/inactive");
+  return response.data;
+}
+
+export async function purgeAllInactiveCategories(): Promise<void> {
+  await api.delete("/categories/inactive/purge");
+}
+
+export async function deleteInactiveCategoryById(id: string): Promise<void> {
+  await api.delete(`/categories/inactive/${id}`);
+}
+
+export async function restoreInactiveCategoryById(id: string): Promise<void>{
+  await api.patch(`categories/inactive/${id}/restore`)
+}

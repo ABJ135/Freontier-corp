@@ -10,10 +10,20 @@ import {
 } from "../../services/categoryApi";
 import { useAuthStore } from "../../store/authStore";
 import type { Category } from "../../types/category";
+import { useNavigate } from "react-router-dom";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import RichTextEditor from "../../components/RichTextEditor";
+
+function descriptionPreview(html: string | null | undefined): string {
+  if (!html) return "—";
+  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return text || "—";
+}
 
 function Categories() {
   const { admin } = useAuthStore();
   const isAdmin = admin?.role === "ADMIN";
+  const navigate = useNavigate();
 
   // 1 = show list view, 2 = show create-category form
   const [state, setstate] = useState(1);
@@ -32,7 +42,8 @@ function Categories() {
   const [editDescription, setEditDescription] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [isDeletingOne, setIsDeletingOne] = useState(false);
 
   const loadCategories = async () => {
     setIsLoadingList(true);
@@ -123,23 +134,22 @@ function Categories() {
     }
   };
 
-  const handleDelete = async (category: Category) => {
-    const confirmed = window.confirm(`Delete category "${category.name}"?`);
-    if (!confirmed) return;
-
-    setDeletingId(category.id);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingOne(true);
     setListError(null);
 
     try {
-      await deleteCategory(category.id);
-      setCategories((prev) => prev.filter((c) => c.id !== category.id));
+      await deleteCategory(deleteTarget.id);
+      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch (err) {
       const message = isAxiosError(err)
         ? err.response?.data?.message ?? "Could not delete category."
         : "Could not delete category.";
       setListError(message);
     } finally {
-      setDeletingId(null);
+      setIsDeletingOne(false);
     }
   };
 
@@ -147,166 +157,259 @@ function Categories() {
     <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-[Space_Grotesk] text-xl font-bold text-[#F4F3F1] sm:text-2xl">
+          <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">
             Categories
           </h1>
-          <p className="mt-1 text-sm text-[#9A99A6] sm:text-[15px]">
+          <p className="mt-1 text-sm text-text-secondary sm:text-[15px]">
             Organize your products into categories.
             {!isAdmin && " Only admins can delete a category."}
           </p>
         </div>
 
-        {state === 1 && (
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
-            onClick={() => setstate(2)}
-            className="w-full rounded-md bg-[#3A5CFF] px-4 py-2 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98] sm:w-auto"
+            onClick={() => navigate("inactive")}
+            className="w-full rounded-md border border-bg-border px-4 py-2 font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary sm:w-auto"
           >
-            New category
+            Inactive categories
           </button>
-        )}
+
+          {state === 1 && (
+            <button
+              onClick={() => setstate(2)}
+              className="w-full rounded-md bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover active:scale-[0.98] sm:w-auto"
+            >
+              New category
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* View 1: existing categories table */}
+      {/* View 1: existing categories */}
       {state === 1 && (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-[#22222C] sm:mt-8">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-[#1A1A22] text-[#9A99A6]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Description</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoadingList && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-[#5C5B66]">
-                    Loading categories...
-                  </td>
-                </tr>
-              )}
+        <>
+          {listError && (
+            <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger sm:mt-8">
+              {listError}
+            </div>
+          )}
 
-              {!isLoadingList && listError && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-[#FF8A8A]">
-                    {listError}
-                  </td>
-                </tr>
-              )}
+          {isLoadingList && (
+            <div className="mt-6 py-10 text-center text-sm text-text-muted sm:mt-8">
+              Loading categories...
+            </div>
+          )}
 
-              {!isLoadingList && !listError && categories.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-[#5C5B66]">
-                    No categories yet.
-                  </td>
-                </tr>
-              )}
+          {!isLoadingList && !listError && categories.length === 0 && (
+            <div className="mt-6 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center sm:mt-8">
+              <p className="text-sm text-text-muted">No categories yet.</p>
+            </div>
+          )}
 
-              {!isLoadingList &&
-                !listError &&
-                categories.map((category) => {
+          {!isLoadingList && !listError && categories.length > 0 && (
+            <>
+              {/* Mobile: stacked cards */}
+              <div className="mt-6 flex flex-col gap-3 lg:hidden">
+                {categories.map((category) => {
                   const isEditing = editingId === category.id;
 
                   return (
-                    <tr
+                    <div
                       key={category.id}
-                      className="border-t border-[#22222C] text-[#F4F3F1]"
+                      className="rounded-lg border border-bg-border bg-bg-panel p-4"
                     >
-                      <td className="px-4 py-3">
-                        {isEditing ? (
+                      {isEditing ? (
+                        <div className="flex flex-col gap-3">
                           <input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-1 text-[#F4F3F1] outline-none focus:border-[#3A5CFF]"
+                            className="w-full border-0 border-b border-bg-border bg-transparent px-0 py-1 text-text-primary outline-none focus:border-accent"
                           />
-                        ) : (
-                          category.name
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-[#9A99A6]">{category.slug}</td>
-                      <td className="px-4 py-3 text-[#9A99A6]">
-                        {isEditing ? (
-                          <input
+                          <RichTextEditor
                             value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
+                            onChange={setEditDescription}
                             placeholder="Description"
-                            className="w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-1 text-[#F4F3F1] outline-none placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
                           />
-                        ) : (
-                          category.description ?? "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-[#9A99A6]">
-                        {category.isActive ? "Active" : "Inactive"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => saveEdit(category.id)}
-                                disabled={isSavingEdit}
-                                className="rounded-md px-2 py-1 text-xs font-medium text-[#3A5CFF] hover:bg-[#22222C] disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="rounded-md p-1.5 text-[#9A99A6] hover:bg-[#22222C]"
-                                aria-label="Cancel edit"
-                              >
-                                <X size={16} strokeWidth={1.75} />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEdit(category)}
-                                className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#F4F3F1]"
-                                aria-label={`Edit ${category.name}`}
-                              >
-                                <Pencil size={16} strokeWidth={1.75} />
-                              </button>
-                              {isAdmin && (
-                                <button
-                                  onClick={() => handleDelete(category)}
-                                  disabled={deletingId === category.id}
-                                  className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#FF8A8A] disabled:opacity-50"
-                                  aria-label={`Delete ${category.name}`}
-                                >
-                                  <Trash2 size={16} strokeWidth={1.75} />
-                                </button>
-                              )}
-                            </>
-                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => saveEdit(category.id)}
+                              disabled={isSavingEdit}
+                              className="flex-1 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                            >
+                              {isSavingEdit ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="rounded-md p-2 text-text-secondary hover:bg-bg-hover"
+                              aria-label="Cancel edit"
+                            >
+                              <X size={16} strokeWidth={1.75} />
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
+                      ) : (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-text-primary">
+                              {category.name}
+                            </p>
+                            <p className="mt-0.5 truncate text-xs text-text-secondary">
+                              {category.slug}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                              {descriptionPreview(category.description)}
+                            </p>
+                            <p className="mt-1 text-xs text-text-muted">
+                              {category.isActive ? "Active" : "Inactive"}
+                            </p>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              onClick={() => startEdit(category)}
+                              className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                              aria-label={`Edit ${category.name}`}
+                            >
+                              <Pencil size={16} strokeWidth={1.75} />
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setDeleteTarget(category)}
+                                className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-danger"
+                                aria-label={`Delete ${category.name}`}
+                              >
+                                <Trash2 size={16} strokeWidth={1.75} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-            </tbody>
-          </table>
-        </div>
+              </div>
+
+              {/* Desktop / tablet: table */}
+              <div className="mt-8 hidden overflow-hidden rounded-lg border border-bg-border lg:block">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-bg-panel text-text-secondary">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Name</th>
+                      <th className="px-4 py-3 font-medium">Slug</th>
+                      <th className="px-4 py-3 font-medium">Description</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map((category) => {
+                      const isEditing = editingId === category.id;
+
+                      return (
+                        <tr
+                          key={category.id}
+                          className="border-t border-bg-border align-top text-text-primary"
+                        >
+                          <td className="px-4 py-3">
+                            {isEditing ? (
+                              <input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="w-full border-0 border-b border-bg-border bg-transparent px-0 py-1 text-text-primary outline-none focus:border-accent"
+                              />
+                            ) : (
+                              category.name
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary">
+                            {category.slug}
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary">
+                            {isEditing ? (
+                              <div className="min-w-[280px]">
+                                <RichTextEditor
+                                  value={editDescription}
+                                  onChange={setEditDescription}
+                                  placeholder="Description"
+                                />
+                              </div>
+                            ) : (
+                              <span className="line-clamp-2">
+                                {descriptionPreview(category.description)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-text-secondary">
+                            {category.isActive ? "Active" : "Inactive"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    onClick={() => saveEdit(category.id)}
+                                    disabled={isSavingEdit}
+                                    className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-bg-hover disabled:opacity-50"
+                                  >
+                                    {isSavingEdit ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="rounded-md p-1.5 text-text-secondary hover:bg-bg-hover"
+                                    aria-label="Cancel edit"
+                                  >
+                                    <X size={16} strokeWidth={1.75} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => startEdit(category)}
+                                    className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                                    aria-label={`Edit ${category.name}`}
+                                  >
+                                    <Pencil size={16} strokeWidth={1.75} />
+                                  </button>
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => setDeleteTarget(category)}
+                                      className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-danger"
+                                      aria-label={`Delete ${category.name}`}
+                                    >
+                                      <Trash2 size={16} strokeWidth={1.75} />
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {/* View 2: add category form */}
       {state === 2 && (
-        <div className="mt-6 w-full max-w-md rounded-lg border border-[#22222C] bg-[#1A1A22] p-4 sm:mt-8 sm:p-6">
-          <h2 className="font-[Space_Grotesk] text-lg font-bold text-[#F4F3F1]">
+        <div className="mt-6 w-full max-w-lg rounded-lg border border-bg-border bg-bg-panel p-4 sm:mt-8 sm:p-6">
+          <h2 className="font-[Space_Grotesk] text-lg font-bold text-text-primary">
             Add category
           </h2>
 
           {formError && (
-            <div className="mt-4 rounded-md border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+            <div className="mt-4 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
               {formError}
             </div>
           )}
 
           <form onSubmit={handleCreate} className="mt-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="block text-sm font-medium text-text-secondary">
                 Name
               </label>
               <input
@@ -315,21 +418,21 @@ function Categories() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. Electronics"
                 required
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
-                Description <span className="text-[#5C5B66]">(optional)</span>
+              <label className="block text-sm font-medium text-text-secondary">
+                Description <span className="text-text-muted">(optional)</span>
               </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Short description"
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
-              />
+              <div className="mt-2">
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Short description"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -337,14 +440,14 @@ function Categories() {
                 type="button"
                 onClick={handleCancel}
                 disabled={isSubmitting}
-                className="w-full rounded-md border border-[#2A2A34] px-4 py-3 font-medium text-[#F4F3F1] transition-colors hover:bg-[#22222C] disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-md border border-bg-border px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-md bg-[#3A5CFF] px-4 py-3 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-md bg-accent px-4 py-3 font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {isSubmitting ? "Adding..." : "Create"}
               </button>
@@ -352,6 +455,15 @@ function Categories() {
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete category"
+        message={`Delete category "${deleteTarget?.name}"?`}
+        isLoading={isDeletingOne}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
