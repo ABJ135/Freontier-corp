@@ -18,7 +18,13 @@ const RESEND_COOLDOWN = 60; // seconds
 function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
-  const prefilledEmail = (location.state as { email?: string })?.email ?? "";
+  const locationState = location.state as { email?: string; cooldownUntil?: number };
+  const prefilledEmail = locationState?.email ?? "";
+  
+  // Calculate remaining cooldown if it was passed from ForgotPasswordPage
+  const initialCooldown = locationState?.cooldownUntil 
+    ? Math.max(0, Math.ceil((locationState.cooldownUntil - Date.now()) / 1000))
+    : 0;
 
   const [email, setEmail] = useState(prefilledEmail);
   const [otp, setOtp] = useState("");
@@ -30,7 +36,7 @@ function ResetPassword() {
 
   // Resend OTP state
   const [isResending, setIsResending] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(initialCooldown);
   const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   // Countdown timer for resend cooldown
