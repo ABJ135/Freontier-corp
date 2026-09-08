@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../../store/authStore";
 import {
   ShoppingCart,
@@ -5,16 +6,36 @@ import {
   Package,
   AlertTriangle,
 } from "lucide-react";
-
-const STATS = [
-  { label: "Orders today", value: "—", icon: ShoppingCart },
-  { label: "Revenue today", value: "—", icon: DollarSign },
-  { label: "Products", value: "—", icon: Package },
-  { label: "Low stock", value: "—", icon: AlertTriangle },
-];
+import { getProducts } from "../../services/productApi";
+import type { Product } from "../../types/product";
 
 function Dashboard() {
   const { admin } = useAuthStore();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        console.error("Failed to load products for dashboard", err);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const totalProducts = isLoading ? "..." : products.length.toString();
+  const lowStock = isLoading ? "..." : products.filter((p) => p.stock < 10).length.toString();
+
+  const STATS = [
+    { label: "Orders today", value: "—", icon: ShoppingCart },
+    { label: "Revenue today", value: "—", icon: DollarSign },
+    { label: "Products", value: totalProducts, icon: Package },
+    { label: "Low stock", value: lowStock, icon: AlertTriangle },
+  ];
 
   return (
     <div className="px-4 py-6 sm:px-10 sm:py-10">
@@ -51,8 +72,7 @@ function Dashboard() {
 
       <div className="mt-8 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center sm:mt-10">
         <p className="text-sm text-text-muted">
-          Stats are wired to placeholder values — connect the orders and
-          products endpoints to populate this view.
+          Stats for orders and revenue are currently wired to placeholder values. Connect their respective endpoints to populate.
         </p>
       </div>
     </div>
