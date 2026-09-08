@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail, Send } from "lucide-react";
 import { forgotAdminPassword } from "../../services/authApi";
 
 function ForgotPassword() {
@@ -27,32 +28,24 @@ function ForgotPassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#121218] px-6 font-[Inter]">
-      <style>{`
-        @keyframes rise-in {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .rise-in { animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
-      `}</style>
-
+    <div className="flex min-h-screen items-center justify-center bg-bg px-6 font-[Inter]">
       <div className="rise-in w-full max-w-sm">
-        <h2 className="font-[Space_Grotesk] text-3xl font-bold text-[#F4F3F1]">
+        <h2 className="font-[Space_Grotesk] text-3xl font-bold text-text-primary">
           Forgot password
         </h2>
-        <p className="mt-2 text-[15px] text-[#9A99A6]">
+        <p className="mt-2 text-[15px] text-text-secondary">
           Enter your admin email and we'll send you a one-time code.
         </p>
 
         {error && (
-          <div className="mt-6 rounded-md border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+          <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
             {error}
           </div>
         )}
 
         {submitted ? (
           <div className="mt-8 space-y-6">
-            <div className="rounded-md border border-[#22301F] bg-[#161C14] px-4 py-3 text-sm text-[#9CD67D]">
+            <div className="rounded-md border border-success-border bg-success-bg px-4 py-3 text-sm text-success">
               If that email is registered, an OTP has been sent.
             </div>
             <button
@@ -60,15 +53,17 @@ function ForgotPassword() {
               onClick={() =>
                 navigate("/admin/reset-password", { state: { email } })
               }
-              className="w-full rounded-md bg-[#3A5CFF] px-4 py-3 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-3 font-medium text-white transition-transform active:scale-[0.98]"
             >
+              <Send size={15} strokeWidth={1.75} />
               I have a code
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-8 space-y-7">
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-text-secondary">
+                <Mail size={14} strokeWidth={1.75} />
                 Email
               </label>
               <input
@@ -77,22 +72,23 @@ function ForgotPassword() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="admin@vikestore.com"
                 required
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-md bg-[#3A5CFF] px-4 py-3 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-md bg-accent px-4 py-3 font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isLoading ? "Sending..." : "Send code"}
+              {isLoading ? "Sending…" : "Send code"}
             </button>
           </form>
         )}
 
-        <p className="mt-8 text-sm text-[#9A99A6]">
-          <Link to="/admin/login" className="text-[#3A5CFF] hover:underline">
+        <p className="mt-8 text-sm text-text-secondary">
+          <Link to="/login" className="inline-flex items-center gap-1.5 text-accent hover:underline">
+            <ArrowLeft size={13} strokeWidth={1.75} />
             Back to sign in
           </Link>
         </p>

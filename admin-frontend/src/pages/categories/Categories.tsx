@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { isAxiosError } from "axios";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Archive, FolderPlus, Pencil, Trash2, X } from "lucide-react";
 import {
   createCategory,
   deleteCategory,
@@ -26,7 +26,7 @@ function Categories() {
   const navigate = useNavigate();
 
   // 1 = show list view, 2 = show create-category form
-  const [state, setstate] = useState(1);
+  const [viewState, setViewState] = useState(1);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -83,7 +83,7 @@ function Categories() {
       });
       resetForm();
       await loadCategories();
-      setstate(1); // back to list view after successful create
+      setViewState(1); // back to list view after successful create
     } catch (err) {
       const message = isAxiosError(err)
         ? err.response?.data?.message ?? "Could not create category."
@@ -96,7 +96,7 @@ function Categories() {
 
   const handleCancel = () => {
     resetForm();
-    setstate(1);
+    setViewState(1);
   };
 
   const startEdit = (category: Category) => {
@@ -169,16 +169,18 @@ function Categories() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             onClick={() => navigate("inactive")}
-            className="w-full rounded-md border border-bg-border px-4 py-2 font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-bg-border px-4 py-2 font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary sm:w-auto"
           >
+            <Archive size={15} strokeWidth={1.75} />
             Inactive categories
           </button>
 
-          {state === 1 && (
+          {viewState === 1 && (
             <button
-              onClick={() => setstate(2)}
-              className="w-full rounded-md bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover active:scale-[0.98] sm:w-auto"
+              onClick={() => setViewState(2)}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 font-medium text-white transition-colors hover:bg-accent-hover active:scale-[0.98] sm:w-auto"
             >
+              <FolderPlus size={15} strokeWidth={1.75} />
               New category
             </button>
           )}
@@ -186,7 +188,7 @@ function Categories() {
       </div>
 
       {/* View 1: existing categories */}
-      {state === 1 && (
+      {viewState === 1 && (
         <>
           {listError && (
             <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger sm:mt-8">
@@ -395,7 +397,7 @@ function Categories() {
       )}
 
       {/* View 2: add category form */}
-      {state === 2 && (
+      {viewState === 2 && (
         <div className="mt-6 w-full max-w-lg rounded-lg border border-bg-border bg-bg-panel p-4 sm:mt-8 sm:p-6">
           <h2 className="font-[Space_Grotesk] text-lg font-bold text-text-primary">
             Add category

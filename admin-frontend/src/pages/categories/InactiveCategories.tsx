@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isAxiosError } from "axios";
-import { Undo2, Trash2 } from "lucide-react";
+import { ArrowLeft, Undo2, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
     deleteInactiveCategoryById,
     getInactiveCategories,
@@ -20,6 +21,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 function InactiveCategories() {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -96,6 +98,15 @@ function InactiveCategories() {
 
     return (
         <div className="px-4 py-6 sm:px-10 sm:py-10">
+            {/* Back link */}
+            <button
+                onClick={() => navigate("/admin/categories")}
+                className="mb-4 flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
+            >
+                <ArrowLeft size={15} strokeWidth={1.75} />
+                Back to categories
+            </button>
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">

@@ -1,10 +1,16 @@
 import { useAuthStore } from "../../store/authStore";
+import {
+  ShoppingCart,
+  DollarSign,
+  Package,
+  AlertTriangle,
+} from "lucide-react";
 
 const STATS = [
-  { label: "Orders today", value: "—" },
-  { label: "Revenue today", value: "—" },
-  { label: "Products", value: "—" },
-  { label: "Low stock", value: "—" },
+  { label: "Orders today", value: "—", icon: ShoppingCart },
+  { label: "Revenue today", value: "—", icon: DollarSign },
+  { label: "Products", value: "—", icon: Package },
+  { label: "Low stock", value: "—", icon: AlertTriangle },
 ];
 
 function Dashboard() {
@@ -20,17 +26,27 @@ function Dashboard() {
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:mt-8 lg:grid-cols-4">
-        {STATS.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-lg border border-bg-border bg-bg-panel px-5 py-4"
-          >
-            <p className="text-xs text-text-secondary">{stat.label}</p>
-            <p className="mt-2 font-[Space_Grotesk] text-2xl font-bold text-text-primary">
-              {stat.value}
-            </p>
-          </div>
-        ))}
+        {STATS.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.label}
+              className="rounded-lg border border-bg-border bg-bg-panel px-5 py-4"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-text-secondary">{stat.label}</p>
+                <Icon
+                  size={15}
+                  strokeWidth={1.75}
+                  className="text-text-muted"
+                />
+              </div>
+              <p className="mt-2 font-[Space_Grotesk] text-2xl font-bold text-text-primary">
+                {stat.value}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       <div className="mt-8 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center sm:mt-10">

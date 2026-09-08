@@ -80,7 +80,7 @@ function DashboardLayout() {
     }`;
 
   return (
-    <div className="flex min-h-screen bg-bg font-[Inter]">
+    <div className="flex h-screen overflow-hidden bg-bg font-[Inter]">
       {/* Mobile top bar */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-bg-border bg-bg-panel px-4 md:hidden">
         <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-text-secondary">
@@ -171,7 +171,7 @@ function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main content — independently scrollable */}
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <Outlet />
       </main>

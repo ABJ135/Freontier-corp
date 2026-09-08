@@ -29,8 +29,8 @@ function AppRoutes() {
           <Route path="products">
             <Route index element={<Products />} />
             <Route path="new" element={<AddProduct />} />
-            <Route path="/admin/products/:id/edit" element={<EditProduct />} />
-            <Route path="/admin/products/inactive" element={<InactiveProducts />} />
+            <Route path=":id/edit" element={<EditProduct />} />
+            <Route path="inactive" element={<InactiveProducts />} />
           </Route>
 
           <Route path="categories" >

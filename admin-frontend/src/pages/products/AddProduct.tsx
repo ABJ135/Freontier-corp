@@ -34,21 +34,19 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+// Uses CSS token classes so both light and dark themes work correctly
 const inputClasses =
-  "mt-1.5 w-full rounded-lg border border-[#E4E4E9] bg-white px-3 py-2.5 text-[#111114] outline-none placeholder:text-[#9C9CA6] transition-colors focus:border-[#3A5CFF] focus:ring-1 focus:ring-[#3A5CFF]/40 dark:border-[#2A2A34] dark:bg-[#15151C] dark:text-[#F4F3F1] dark:placeholder:text-[#5C5B66]";
+  "mt-1.5 w-full rounded-lg border border-bg-border bg-bg px-3 py-2.5 text-text-primary outline-none placeholder:text-text-muted transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40";
 
-// Every image tile — the primary box and each grid thumbnail — shares this
-// shape (a square that fills its parent), per the "all boxes same size"
-// requirement.
 const imageBoxBaseClasses = "relative aspect-square w-full overflow-hidden rounded-lg";
 
-const filledBoxClasses = `${imageBoxBaseClasses} border border-[#E4E4E9] bg-[#F7F7F8] dark:border-[#2A2A34] dark:bg-[#15151C]`;
+const filledBoxClasses = `${imageBoxBaseClasses} border border-bg-border bg-bg-hover`;
 
 function addTileClasses(isDraggingOver: boolean) {
   return `${imageBoxBaseClasses} flex cursor-pointer flex-col items-center justify-center gap-1 border border-dashed text-[11px] transition-colors ${
     isDraggingOver
-      ? "border-[#3A5CFF] bg-[#EEF1FF] text-[#3A5CFF] dark:bg-[#151A2E]"
-      : "border-[#D5D5DC] text-[#9C9CA6] hover:border-[#3A5CFF] hover:text-[#3A5CFF] dark:border-[#33333F] dark:text-[#5C5B66]"
+      ? "border-accent bg-accent/10 text-accent"
+      : "border-bg-border text-text-muted hover:border-accent hover:text-accent"
   }`;
 }
 
@@ -63,14 +61,10 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-[#3A3A44] dark:text-[#D8D7DE]">
-        {label}
-      </span>
+      <span className="text-sm font-medium text-text-secondary">{label}</span>
       {children}
       {hint && (
-        <p className="mt-1.5 text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
-          {hint}
-        </p>
+        <p className="mt-1.5 text-xs text-text-muted">{hint}</p>
       )}
     </label>
   );
@@ -86,14 +80,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-[#E4E4E9] bg-white p-6 dark:border-[#22222C] dark:bg-[#101014]">
-      <h2 className="text-[15px] font-semibold text-[#111114] dark:text-[#F4F3F1]">
-        {title}
-      </h2>
+    <section className="rounded-xl border border-bg-border bg-bg-panel p-6">
+      <h2 className="text-[15px] font-semibold text-text-primary">{title}</h2>
       {description && (
-        <p className="mt-1 text-sm text-[#6B6B76] dark:text-[#8B8A96]">
-          {description}
-        </p>
+        <p className="mt-1 text-sm text-text-secondary">{description}</p>
       )}
       <div className="mt-5 space-y-5">{children}</div>
     </section>
@@ -102,9 +92,6 @@ function Section({
 
 function AddProduct() {
   const navigate = useNavigate();
-  // Keeps the page in sync with the stored theme preference. Once the
-  // Settings toggle exists, it can call setTheme/toggleTheme from this same
-  // hook and every page picks it up automatically.
   useTheme();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -180,10 +167,6 @@ function AddProduct() {
     });
   };
 
-  // --- Drag to reorder -----------------------------------------------
-  // Any tile (the primary box or a grid thumbnail) can be dragged onto any
-  // other tile. Dropping onto the primary box promotes that image; dropping
-  // a primary image into the grid demotes it.
   const handleTileDragStart = (index: number) => (event: DragEvent) => {
     setDraggedIndex(index);
     event.dataTransfer.effectAllowed = "move";
@@ -213,9 +196,6 @@ function AddProduct() {
     setDropTargetIndex(null);
   };
 
-  // Empty slots (the "add" tiles) accept two different things: a photo
-  // being reordered from elsewhere in the grid, or new files dragged in
-  // from outside the browser. Same box, either source.
   const handleSlotDragOver = (index: number) => (event: DragEvent) => {
     event.preventDefault();
     if (draggedIndex !== null) {
@@ -291,11 +271,11 @@ function AddProduct() {
   const [primaryImage, ...otherImages] = pendingImages;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F8] px-6 py-8 pb-28 transition-colors dark:bg-[#0B0B0F] lg:px-10">
+    <div className="min-h-screen bg-bg px-6 py-8 pb-28 transition-colors lg:px-10">
       <div className="mx-auto max-w-5xl">
         <button
           onClick={() => navigate("/admin/products")}
-          className="flex items-center gap-2 text-sm text-[#6B6B76] transition-colors hover:text-[#111114] dark:text-[#9A99A6] dark:hover:text-[#F4F3F1]"
+          className="flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
         >
           <ArrowLeft size={16} strokeWidth={1.75} />
           Back to products
@@ -303,17 +283,17 @@ function AddProduct() {
 
         <div className="mt-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-[Space_Grotesk] text-2xl font-bold text-[#111114] dark:text-[#F4F3F1]">
+            <h1 className="font-[Space_Grotesk] text-2xl font-bold text-text-primary">
               Add product
             </h1>
-            <p className="mt-1 text-[15px] text-[#6B6B76] dark:text-[#9A99A6]">
+            <p className="mt-1 text-[15px] text-text-secondary">
               Fill in the details below, then create the product.
             </p>
           </div>
         </div>
 
         {formError && (
-          <div className="mt-6 rounded-lg border border-[#F3C6C6] bg-[#FDECEC] px-4 py-3 text-sm text-[#B3261E] dark:border-[#3A2226] dark:bg-[#241417] dark:text-[#FF8A8A]">
+          <div className="mt-6 rounded-lg border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
             {formError}
           </div>
         )}
@@ -343,9 +323,9 @@ function AddProduct() {
                     onChange={(e) => setCategoryId(e.target.value)}
                     required
                     disabled={isLoadingCategories}
-                    className={`${inputClasses} [&>option]:bg-white dark:[&>option]:bg-[#15151C]`}
+                    className={`${inputClasses} [&>option]:bg-bg-panel`}
                   >
-                    {isLoadingCategories && <option value="">Loading...</option>}
+                    {isLoadingCategories && <option value="">Loading…</option>}
                     {!isLoadingCategories && categories.length === 0 && (
                       <option value="">No categories yet</option>
                     )}
@@ -370,9 +350,8 @@ function AddProduct() {
               </Field>
 
               {!isLoadingCategories && categories.length === 0 && (
-                <p className="rounded-lg border border-[#E9DCA8] bg-[#FBF3DC] px-3 py-2 text-xs text-[#8A6D1B] dark:border-[#3A3221] dark:bg-[#1E1B14] dark:text-[#E4C878]">
-                  You need at least one category before you can create a
-                  product.
+                <p className="rounded-lg border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning">
+                  You need at least one category before you can create a product.
                 </p>
               )}
             </Section>
@@ -384,7 +363,7 @@ function AddProduct() {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <Field label="Price">
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA6] dark:text-[#5C5B66]">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                       $
                     </span>
                     <input
@@ -401,7 +380,7 @@ function AddProduct() {
                 </Field>
                 <Field label="Compare-at" hint="Optional">
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9C9CA6] dark:text-[#5C5B66]">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                       $
                     </span>
                     <input
@@ -428,14 +407,13 @@ function AddProduct() {
                 </Field>
               </div>
               {discountPct !== null && (
-                <p className="text-xs text-[#2F8F4E] dark:text-[#7FB88A]">
+                <p className="text-xs text-success">
                   Shows as {discountPct}% off compare-at price.
                 </p>
               )}
             </Section>
 
             <Section title="Description" description="Optional — shown on the product page.">
-              {/* Editor lives in its own div, unrelated to the media div below. */}
               <div>
                 <RichTextEditor
                   value={description}
@@ -449,13 +427,10 @@ function AddProduct() {
               title="Media"
               description="The first image is used as the primary image in the catalog."
             >
-              {/* Media div: one div for the primary image input, one div for
-                  the grid of the other 8 image slots. 3-column split so the
-                  grid div gets twice the width of the primary div. */}
               <div className="grid grid-cols-3 gap-6">
-                {/* Div 1: primary image input only */}
+                {/* Primary image slot */}
                 <div>
-                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[#9C9CA6] dark:text-[#5C5B66]">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-text-muted">
                     Primary
                   </p>
                   {primaryImage ? (
@@ -466,7 +441,7 @@ function AddProduct() {
                       onDragOver={handleTileDragOver(0)}
                       onDrop={handleTileDrop(0)}
                       className={`group ${filledBoxClasses} cursor-grab active:cursor-grabbing ${
-                        dropTargetIndex === 0 ? "ring-2 ring-[#3A5CFF]" : ""
+                        dropTargetIndex === 0 ? "ring-2 ring-accent" : ""
                       }`}
                     >
                       <img
@@ -503,9 +478,9 @@ function AddProduct() {
                   )}
                 </div>
 
-                {/* Div 2: grid of 8 boxes for the other images */}
+                {/* Other image slots */}
                 <div className="col-span-2">
-                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[#9C9CA6] dark:text-[#5C5B66]">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-text-muted">
                     Other images
                   </p>
                   <div className="grid grid-cols-3 gap-2">
@@ -524,7 +499,7 @@ function AddProduct() {
                             onDrop={handleTileDrop(actualIndex)}
                             className={`group ${filledBoxClasses} cursor-grab active:cursor-grabbing ${
                               dropTargetIndex === actualIndex
-                                ? "ring-2 ring-[#3A5CFF]"
+                                ? "ring-2 ring-accent"
                                 : ""
                             }`}
                           >
@@ -545,8 +520,6 @@ function AddProduct() {
                         );
                       }
 
-                      // Every empty slot is a clickable/droppable add tile —
-                      // not just the next one in line.
                       return (
                         <label
                           key={`add-${actualIndex}`}
@@ -570,57 +543,45 @@ function AddProduct() {
                   </div>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
-                Drag any photo onto another box to reorder, or onto the
-                primary box to swap it in.
+              <p className="mt-3 text-xs text-text-muted">
+                Drag any photo onto another box to reorder, or onto the primary
+                box to swap it in.
               </p>
             </Section>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8 rounded-xl border border-[#E4E4E9] bg-white p-6 dark:border-[#22222C] dark:bg-[#101014]">
-              <h2 className="text-[15px] font-semibold text-[#111114] dark:text-[#F4F3F1]">
+            <div className="sticky top-8 rounded-xl border border-bg-border bg-bg-panel p-6">
+              <h2 className="text-[15px] font-semibold text-text-primary">
                 Summary
               </h2>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">Name</dt>
-                  <dd className="max-w-[60%] truncate text-right text-[#111114] dark:text-[#F4F3F1]">
+                  <dt className="text-text-secondary">Name</dt>
+                  <dd className="max-w-[60%] truncate text-right text-text-primary">
                     {name || "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
-                    Category
-                  </dt>
-                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
+                  <dt className="text-text-secondary">Category</dt>
+                  <dd className="text-text-primary">
                     {selectedCategory?.name ?? "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
-                    Price
-                  </dt>
-                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
+                  <dt className="text-text-secondary">Price</dt>
+                  <dd className="text-text-primary">
                     {price ? centsToDisplay(priceCents) : "—"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
-                    Stock
-                  </dt>
-                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
-                    {stock || "0"} units
-                  </dd>
+                  <dt className="text-text-secondary">Stock</dt>
+                  <dd className="text-text-primary">{stock || "0"} units</dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-[#6B6B76] dark:text-[#8B8A96]">
-                    Images
-                  </dt>
-                  <dd className="text-[#111114] dark:text-[#F4F3F1]">
-                    {pendingImages.length}
-                  </dd>
+                  <dt className="text-text-secondary">Images</dt>
+                  <dd className="text-text-primary">{pendingImages.length}</dd>
                 </div>
               </dl>
             </div>
@@ -629,20 +590,20 @@ function AddProduct() {
       </div>
 
       {/* Sticky action bar */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-[#E4E4E9] bg-white/95 backdrop-blur transition-colors dark:border-[#22222C] dark:bg-[#0B0B0F]/95">
+      <div className="fixed inset-x-0 bottom-0 border-t border-bg-border bg-bg-panel/95 backdrop-blur transition-colors">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
-          <p className="text-xs text-[#9C9CA6] dark:text-[#5C5B66]">
+          <p className="text-xs text-text-muted">
             {uploadProgress
-              ? `Uploading image ${uploadProgress.current} of ${uploadProgress.total}...`
+              ? `Uploading image ${uploadProgress.current} of ${uploadProgress.total}…`
               : isSubmitting
-                ? "Creating product..."
+                ? "Creating product…"
                 : "Ready to publish"}
           </p>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate("/admin/products")}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-[#6B6B76] hover:text-[#111114] dark:text-[#9A99A6] dark:hover:text-[#F4F3F1]"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary"
             >
               Cancel
             </button>
@@ -650,10 +611,10 @@ function AddProduct() {
               type="submit"
               form="add-product-form"
               disabled={isSubmitting || categories.length === 0}
-              className="flex items-center gap-2 rounded-lg bg-[#3A5CFF] px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {isSubmitting ? "Creating..." : "Create product"}
+              {isSubmitting ? "Creating…" : "Create product"}
             </button>
           </div>
         </div>

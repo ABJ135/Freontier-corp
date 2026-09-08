@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isAxiosError } from "axios";
-import { Undo2, Trash2 } from "lucide-react";
+import { ArrowLeft, Undo2, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   getInactiveProducts,
   restoreInactiveProduct,
@@ -30,6 +31,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 function InactiveProducts() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
@@ -61,7 +63,6 @@ function InactiveProducts() {
   const handleRestore = async (product: Product) => {
     setRestoringId(product.id);
     setListError(null);
-
     try {
       await restoreInactiveProduct(product.id);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
@@ -76,7 +77,6 @@ function InactiveProducts() {
     if (!deleteTarget) return;
     setIsDeletingOne(true);
     setListError(null);
-
     try {
       await removeInactiveProduct(deleteTarget.id);
       setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
@@ -91,7 +91,6 @@ function InactiveProducts() {
   const confirmPurgeAll = async () => {
     setIsPurging(true);
     setListError(null);
-
     try {
       await purgeInactiveProducts();
       setProducts([]);
@@ -105,12 +104,21 @@ function InactiveProducts() {
 
   return (
     <div className="px-4 py-6 sm:px-10 sm:py-10">
+      {/* Back link */}
+      <button
+        onClick={() => navigate("/admin/products")}
+        className="mb-4 flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
+      >
+        <ArrowLeft size={15} strokeWidth={1.75} />
+        Back to products
+      </button>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-[Space_Grotesk] text-xl font-bold text-[#F4F3F1] sm:text-2xl">
+          <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">
             Inactive Products
           </h1>
-          <p className="mt-1 text-sm text-[#9A99A6] sm:text-[15px]">
+          <p className="mt-1 text-sm text-text-secondary sm:text-[15px]">
             Products that have been soft-deleted.
           </p>
         </div>
@@ -118,7 +126,7 @@ function InactiveProducts() {
         <button
           onClick={() => setShowPurgeDialog(true)}
           disabled={isLoadingList || products.length === 0}
-          className="flex items-center justify-center gap-2 rounded-md border border-[#3A1F1F] bg-[#2A1616] px-4 py-2.5 text-sm font-medium text-[#FF8A8A] transition-colors hover:bg-[#3A1F1F] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex items-center justify-center gap-2 rounded-md border border-danger-border bg-danger-bg px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger-bg-hover disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Trash2 size={16} strokeWidth={1.75} />
           Delete all
@@ -126,20 +134,20 @@ function InactiveProducts() {
       </div>
 
       {listError && (
-        <div className="mt-6 rounded-md border border-[#3A1F1F] bg-[#2A1616] px-4 py-3 text-sm text-[#FF8A8A]">
+        <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
           {listError}
         </div>
       )}
 
       {isLoadingList && (
-        <div className="mt-8 py-10 text-center text-sm text-[#5C5B66]">
-          Loading inactive products...
+        <div className="mt-8 py-10 text-center text-sm text-text-muted">
+          Loading inactive products…
         </div>
       )}
 
       {!isLoadingList && !listError && products.length === 0 && (
-        <div className="mt-8 rounded-lg border border-dashed border-[#22222C] px-6 py-14 text-center">
-          <p className="text-sm text-[#5C5B66]">No inactive products.</p>
+        <div className="mt-8 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center">
+          <p className="text-sm text-text-muted">No inactive products.</p>
         </div>
       )}
 
@@ -149,11 +157,10 @@ function InactiveProducts() {
           <div className="mt-6 flex flex-col gap-3 sm:hidden">
             {products.map((product) => {
               const thumb = primaryImage(product);
-
               return (
                 <div
                   key={product.id}
-                  className="rounded-lg border border-[#22222C] bg-[#1A1A22] p-4"
+                  className="rounded-lg border border-bg-border bg-bg-panel p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
@@ -164,20 +171,20 @@ function InactiveProducts() {
                           className="h-12 w-12 shrink-0 rounded-md object-cover"
                         />
                       ) : (
-                        <div className="h-12 w-12 shrink-0 rounded-md bg-[#22222C]" />
+                        <div className="h-12 w-12 shrink-0 rounded-md bg-bg-hover" />
                       )}
 
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-[#F4F3F1]">
+                        <p className="truncate font-medium text-text-primary">
                           {product.name}
                         </p>
-                        <p className="mt-0.5 truncate text-xs text-[#9A99A6]">
+                        <p className="mt-0.5 truncate text-xs text-text-secondary">
                           {product.sku}
                         </p>
-                        <p className="mt-0.5 truncate text-xs text-[#9A99A6]">
+                        <p className="mt-0.5 truncate text-xs text-text-secondary">
                           {product.category?.name ?? "—"}
                         </p>
-                        <div className="mt-1.5 flex items-center gap-3 text-xs text-[#9A99A6]">
+                        <div className="mt-1.5 flex items-center gap-3 text-xs text-text-secondary">
                           <span>${centsToDollarsInput(product.priceCents)}</span>
                           <span>Stock: {product.stock}</span>
                         </div>
@@ -188,14 +195,14 @@ function InactiveProducts() {
                       <button
                         onClick={() => handleRestore(product)}
                         disabled={restoringId === product.id}
-                        className="rounded-md p-2 text-[#9A99A6] hover:bg-[#22222C] hover:text-[#F4F3F1] disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
                         aria-label={`Restore ${product.name}`}
                       >
                         <Undo2 size={16} strokeWidth={1.75} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(product)}
-                        className="rounded-md p-2 text-[#9A99A6] hover:bg-[#22222C] hover:text-[#FF8A8A]"
+                        className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-danger"
                         aria-label={`Delete ${product.name}`}
                       >
                         <Trash2 size={16} strokeWidth={1.75} />
@@ -208,9 +215,9 @@ function InactiveProducts() {
           </div>
 
           {/* Desktop / tablet: table */}
-          <div className="mt-6 hidden overflow-hidden rounded-lg border border-[#22222C] sm:block">
+          <div className="mt-6 hidden overflow-x-auto rounded-lg border border-bg-border sm:block">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#1A1A22] text-[#9A99A6]">
+              <thead className="bg-bg-panel text-text-secondary">
                 <tr>
                   <th className="px-4 py-3 font-medium">Image</th>
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -218,17 +225,16 @@ function InactiveProducts() {
                   <th className="px-4 py-3 font-medium">Category</th>
                   <th className="px-4 py-3 font-medium">Price</th>
                   <th className="px-4 py-3 font-medium">Stock</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {products.map((product) => {
                   const thumb = primaryImage(product);
-
                   return (
                     <tr
                       key={product.id}
-                      className="border-t border-[#22222C] text-[#F4F3F1]"
+                      className="border-t border-bg-border text-text-primary"
                     >
                       <td className="px-4 py-3">
                         {thumb ? (
@@ -238,12 +244,12 @@ function InactiveProducts() {
                             className="h-10 w-10 rounded-md object-cover"
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded-md bg-[#22222C]" />
+                          <div className="h-10 w-10 rounded-md bg-bg-hover" />
                         )}
                       </td>
                       <td className="px-4 py-3">{product.name}</td>
-                      <td className="px-4 py-3 text-[#9A99A6]">{product.sku}</td>
-                      <td className="px-4 py-3 text-[#9A99A6]">
+                      <td className="px-4 py-3 text-text-secondary">{product.sku}</td>
+                      <td className="px-4 py-3 text-text-secondary">
                         {product.category?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
@@ -255,14 +261,14 @@ function InactiveProducts() {
                           <button
                             onClick={() => handleRestore(product)}
                             disabled={restoringId === product.id}
-                            className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#F4F3F1] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`Restore ${product.name}`}
                           >
                             <Undo2 size={16} strokeWidth={1.75} />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(product)}
-                            className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#FF8A8A]"
+                            className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-danger"
                             aria-label={`Delete ${product.name}`}
                           >
                             <Trash2 size={16} strokeWidth={1.75} />

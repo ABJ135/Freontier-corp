@@ -98,10 +98,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Smooth theme transitions instead of an abrupt flash */
+/* Smooth theme transitions — scoped to structural elements only,
+   not every * element, to avoid animation jank on inputs/buttons */
 body,
-.dark body,
-* {
+[class*="bg-bg"],
+[class*="border-bg"],
+[class*="text-text"] {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -120,3 +122,23 @@ body,
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* -------------------- Global Animations -------------------- */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50%       { transform: translate(24px, -18px) rotate(6deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.rise-in     { animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.drift-shape { animation: drift 14s ease-in-out infinite; }
+.fade-in     { animation: fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }

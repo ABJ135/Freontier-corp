@@ -13,6 +13,8 @@ import {
 import { getCategories } from "../../services/categoryApi";
 import type { Category } from "../../types/category";
 import type { Product, ProductImage } from "../../types/product";
+import { useTheme } from "../../hooks/useTheme";
+import RichTextEditor from "../../components/RichTextEditor";
 
 interface PendingImage {
   file: File;
@@ -38,7 +40,7 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 }
 
 const inputClasses =
-  "mt-1.5 w-full rounded-lg border border-[#2A2A34] bg-[#15151C] px-3 py-2.5 text-[#F4F3F1] outline-none placeholder:text-[#5C5B66] transition-colors focus:border-[#3A5CFF] focus:ring-1 focus:ring-[#3A5CFF]/40";
+  "mt-1.5 w-full rounded-lg border border-bg-border bg-bg px-3 py-2.5 text-text-primary outline-none placeholder:text-text-muted transition-colors focus:border-accent focus:ring-1 focus:ring-accent/40";
 
 function Field({
   label,
@@ -51,9 +53,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-[#D8D7DE]">{label}</span>
+      <span className="text-sm font-medium text-text-secondary">{label}</span>
       {children}
-      {hint && <p className="mt-1.5 text-xs text-[#5C5B66]">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-text-muted">{hint}</p>}
     </label>
   );
 }
@@ -68,10 +70,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-[#22222C] bg-[#101014] p-6">
-      <h2 className="text-[15px] font-semibold text-[#F4F3F1]">{title}</h2>
+    <section className="rounded-xl border border-bg-border bg-bg-panel p-6">
+      <h2 className="text-[15px] font-semibold text-text-primary">{title}</h2>
       {description && (
-        <p className="mt-1 text-sm text-[#8B8A96]">{description}</p>
+        <p className="mt-1 text-sm text-text-secondary">{description}</p>
       )}
       <div className="mt-5 space-y-5">{children}</div>
     </section>
@@ -84,6 +86,9 @@ function EditProduct() {
   const location = useLocation();
   const stateProduct = (location.state as { product?: Product } | null)
     ?.product;
+
+  // Keep page in sync with theme store
+  useTheme();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -103,9 +108,7 @@ function EditProduct() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [busyImageId, setBusyImageId] = useState<string | null>(null);
-  const [imageActionError, setImageActionError] = useState<string | null>(
-    null,
-  );
+  const [imageActionError, setImageActionError] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{
@@ -143,13 +146,11 @@ function EditProduct() {
 
   useEffect(() => {
     if (!id) return;
-
     if (stateProduct) {
       applyProduct(stateProduct);
       setIsLoadingProduct(false);
       return;
     }
-
     (async () => {
       setIsLoadingProduct(true);
       try {
@@ -216,10 +217,11 @@ function EditProduct() {
       await deleteProductImage(id, image.id);
       setExistingImages((prev) => {
         const remaining = prev.filter((img) => img.id !== image.id);
-        // If we just deleted the primary image and something is left,
-        // reflect the backend's auto-promotion locally so the UI doesn't
-        // show "no primary image" until the next reload.
-        if (image.isPrimary && remaining.length > 0 && !remaining.some((i) => i.isPrimary)) {
+        if (
+          image.isPrimary &&
+          remaining.length > 0 &&
+          !remaining.some((i) => i.isPrimary)
+        ) {
           remaining[0] = { ...remaining[0], isPrimary: true };
         }
         return remaining;
@@ -233,7 +235,6 @@ function EditProduct() {
 
   const makeExistingPrimary = async (image: ProductImage) => {
     if (!id || image.isPrimary) return;
-
     setImageActionError(null);
     setBusyImageId(image.id);
     try {
@@ -253,10 +254,8 @@ function EditProduct() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!id) return;
-
     setFormError(null);
     setIsSubmitting(true);
-
     try {
       await updateProduct(id, {
         sku,
@@ -286,8 +285,8 @@ function EditProduct() {
 
   if (isLoadingProduct) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B0B0F]">
-        <Loader2 className="animate-spin text-[#5C5B66]" size={22} />
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <Loader2 className="animate-spin text-text-muted" size={22} />
       </div>
     );
   }
@@ -297,12 +296,12 @@ function EditProduct() {
       <div className="px-6 py-10 lg:px-10">
         <button
           onClick={() => navigate("/admin/products")}
-          className="flex items-center gap-2 text-sm text-[#9A99A6] hover:text-[#F4F3F1]"
+          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary"
         >
           <ArrowLeft size={16} strokeWidth={1.75} />
           Back to products
         </button>
-        <div className="mt-6 max-w-xl rounded-lg border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+        <div className="mt-6 max-w-xl rounded-lg border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
           {loadError}
         </div>
       </div>
@@ -310,23 +309,23 @@ function EditProduct() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] px-6 py-8 pb-28 lg:px-10">
+    <div className="min-h-screen bg-bg px-6 py-8 pb-28 lg:px-10">
       <div className="mx-auto max-w-5xl">
         <button
           onClick={() => navigate("/admin/products")}
-          className="flex items-center gap-2 text-sm text-[#9A99A6] transition-colors hover:text-[#F4F3F1]"
+          className="flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
         >
           <ArrowLeft size={16} strokeWidth={1.75} />
           Back to products
         </button>
 
-        <h1 className="mt-4 font-[Space_Grotesk] text-2xl font-bold text-[#F4F3F1]">
+        <h1 className="mt-4 font-[Space_Grotesk] text-2xl font-bold text-text-primary">
           Edit product
         </h1>
-        <p className="mt-1 text-[15px] text-[#9A99A6]">{name}</p>
+        <p className="mt-1 text-[15px] text-text-secondary">{name}</p>
 
         {formError && (
-          <div className="mt-6 rounded-lg border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+          <div className="mt-6 rounded-lg border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
             {formError}
           </div>
         )}
@@ -353,7 +352,7 @@ function EditProduct() {
                   onChange={(e) => setCategoryId(e.target.value)}
                   required
                   disabled={isLoadingCategories}
-                  className={`${inputClasses} [&>option]:bg-[#15151C]`}
+                  className={`${inputClasses} [&>option]:bg-bg-panel`}
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -374,16 +373,14 @@ function EditProduct() {
               />
             </Field>
 
-            <Field
-              label="Description"
-              hint="Optional — shown on the product page."
-            >
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className={`${inputClasses} resize-none`}
-              />
+            <Field label="Description" hint="Optional — shown on the product page.">
+              <div className="mt-1.5">
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Short description — use the toolbar for headings and lists."
+                />
+              </div>
             </Field>
           </Section>
 
@@ -394,7 +391,7 @@ function EditProduct() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
               <Field label="Price">
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5B66]">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                     $
                   </span>
                   <input
@@ -410,7 +407,7 @@ function EditProduct() {
               </Field>
               <Field label="Compare-at" hint="Optional">
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5C5B66]">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted">
                     $
                   </span>
                   <input
@@ -441,7 +438,7 @@ function EditProduct() {
             description="Click the star to set an image as primary. New images are uploaded when you save."
           >
             {imageActionError && (
-              <div className="rounded-lg border border-[#3A2226] bg-[#241417] px-3 py-2 text-xs text-[#FF8A8A]">
+              <div className="rounded-lg border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger">
                 {imageActionError}
               </div>
             )}
@@ -452,7 +449,7 @@ function EditProduct() {
                   <img
                     src={img.imageUrl}
                     alt=""
-                    className="h-full w-full rounded-lg object-cover ring-1 ring-[#2A2A34]"
+                    className="h-full w-full rounded-lg object-cover ring-1 ring-bg-border"
                   />
                   {busyImageId === img.id && (
                     <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
@@ -460,7 +457,7 @@ function EditProduct() {
                     </div>
                   )}
                   {img.isPrimary ? (
-                    <span className="absolute -top-2 -left-2 flex items-center gap-1 rounded-full bg-[#3A5CFF] px-2 py-0.5 text-[10px] font-medium text-white">
+                    <span className="absolute -top-2 -left-2 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-white">
                       <Star size={10} fill="currentColor" />
                       Primary
                     </span>
@@ -478,7 +475,7 @@ function EditProduct() {
                     type="button"
                     onClick={() => removeExistingImage(img)}
                     disabled={isImageActionBusy}
-                    className="absolute -top-2 -right-2 rounded-full bg-[#1A1A22] p-1 text-[#9A99A6] ring-1 ring-[#2A2A34] hover:text-[#FF8A8A] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="absolute -top-2 -right-2 rounded-full bg-bg-panel p-1 text-text-secondary ring-1 ring-bg-border hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Remove image"
                   >
                     <X size={12} strokeWidth={2.5} />
@@ -494,15 +491,15 @@ function EditProduct() {
                   <img
                     src={img.previewUrl}
                     alt=""
-                    className="h-full w-full rounded-lg object-cover opacity-70 ring-1 ring-dashed ring-[#3A5CFF]"
+                    className="h-full w-full rounded-lg object-cover opacity-70 ring-1 ring-dashed ring-accent"
                   />
-                  <span className="absolute -top-2 -left-2 rounded-full bg-[#22222C] px-2 py-0.5 text-[10px] text-[#9A99A6]">
+                  <span className="absolute -top-2 -left-2 rounded-full bg-bg-panel px-2 py-0.5 text-[10px] text-text-muted ring-1 ring-bg-border">
                     New
                   </span>
                   <button
                     type="button"
                     onClick={() => removePendingImage(index)}
-                    className="absolute -top-2 -right-2 rounded-full bg-[#1A1A22] p-1 text-[#9A99A6] ring-1 ring-[#2A2A34] hover:text-[#FF8A8A]"
+                    className="absolute -top-2 -right-2 rounded-full bg-bg-panel p-1 text-text-secondary ring-1 ring-bg-border hover:text-danger"
                     aria-label="Remove pending image"
                   >
                     <X size={12} strokeWidth={2.5} />
@@ -519,8 +516,8 @@ function EditProduct() {
                 onDrop={handleDrop}
                 className={`flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-xs transition-colors ${
                   isDraggingOver
-                    ? "border-[#3A5CFF] bg-[#151A2E] text-[#3A5CFF]"
-                    : "border-[#2A2A34] text-[#5C5B66] hover:border-[#3A5CFF] hover:text-[#3A5CFF]"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-bg-border text-text-muted hover:border-accent hover:text-accent"
                 }`}
               >
                 <ImagePlus size={18} strokeWidth={1.75} />
@@ -536,7 +533,7 @@ function EditProduct() {
             </div>
 
             {existingImages.length === 0 && pendingImages.length === 0 && (
-              <p className="text-xs text-[#5C5B66]">
+              <p className="text-xs text-text-muted">
                 No images yet. The first one you add becomes primary.
               </p>
             )}
@@ -544,20 +541,21 @@ function EditProduct() {
         </form>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-[#22222C] bg-[#0B0B0F]/95 backdrop-blur">
+      {/* Sticky action bar */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-bg-border bg-bg-panel/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
-          <p className="text-xs text-[#5C5B66]">
+          <p className="text-xs text-text-muted">
             {uploadProgress
-              ? `Uploading image ${uploadProgress.current} of ${uploadProgress.total}...`
+              ? `Uploading image ${uploadProgress.current} of ${uploadProgress.total}…`
               : isSubmitting
-                ? "Saving changes..."
+                ? "Saving changes…"
                 : "Editing product"}
           </p>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate("/admin/products")}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-[#9A99A6] hover:text-[#F4F3F1]"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-text-secondary hover:text-text-primary"
             >
               Cancel
             </button>
@@ -565,10 +563,10 @@ function EditProduct() {
               type="submit"
               form="edit-product-form"
               disabled={isSubmitting || isImageActionBusy}
-              className="flex items-center gap-2 rounded-lg bg-[#3A5CFF] px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-              {isSubmitting ? "Saving..." : "Save changes"}
+              {isSubmitting ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>

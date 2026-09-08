@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { isAxiosError } from "axios";
-import { Trash2 } from "lucide-react";
+import { Trash2, UserPlus, Shield, UserCog } from "lucide-react";
 import {
   createEmployee,
   deleteEmployee,
   getEmployees,
 } from "../../services/employeeApi";
 import type { Admin, AdminRole } from "../../types/auth";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 function Employees() {
-  // 1 = show list view, 2 = show create-employee form
-  const [state, setstate] = useState(1);
+  // 1 = list view, 2 = create-employee form
+  const [viewState, setViewState] = useState(1);
 
   const [accounts, setAccounts] = useState<Admin[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -26,7 +27,8 @@ function Employees() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Admin | null>(null);
+  const [isDeletingOne, setIsDeletingOne] = useState(false);
 
   const loadAccounts = async () => {
     setIsLoadingList(true);
@@ -70,7 +72,7 @@ function Employees() {
       );
       resetForm();
       await loadAccounts();
-      setstate(1); // back to list view after successful create
+      setViewState(1);
     } catch (err) {
       const message = isAxiosError(err)
         ? err.response?.data?.message ?? "Could not create account."
@@ -83,28 +85,24 @@ function Employees() {
 
   const handleCancel = () => {
     resetForm();
-    setstate(1);
+    setViewState(1);
   };
 
-  const handleDelete = async (account: Admin) => {
-    const confirmed = window.confirm(
-      `Delete ${account.name} (${account.email})? This can't be undone.`,
-    );
-    if (!confirmed) return;
-
-    setDeletingId(account.id);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingOne(true);
     setListError(null);
-
     try {
-      await deleteEmployee(account.id);
-      setAccounts((prev) => prev.filter((a) => a.id !== account.id));
+      await deleteEmployee(deleteTarget.id);
+      setAccounts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch (err) {
       const message = isAxiosError(err)
         ? err.response?.data?.message ?? "Could not delete account."
         : "Could not delete account.";
       setListError(message);
     } finally {
-      setDeletingId(null);
+      setIsDeletingOne(false);
     }
   };
 
@@ -112,130 +110,143 @@ function Employees() {
     <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-[Space_Grotesk] text-xl font-bold text-[#F4F3F1] sm:text-2xl">
+          <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">
             Employees
           </h1>
-          <p className="mt-1 text-sm text-[#9A99A6] sm:text-[15px]">
+          <p className="mt-1 text-sm text-text-secondary sm:text-[15px]">
             Manage admin and employee accounts for your team.
           </p>
         </div>
 
-        {state === 1 && (
+        {viewState === 1 && (
           <button
-            onClick={() => setstate(2)}
-            className="w-full rounded-md bg-[#3A5CFF] px-4 py-2 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98] sm:w-auto"
+            onClick={() => setViewState(2)}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 font-medium text-white transition-transform active:scale-[0.98] sm:w-auto"
           >
+            <UserPlus size={16} strokeWidth={1.75} />
             New employee
           </button>
         )}
       </div>
 
-      {/* View 1: existing accounts table */}
-      {state === 1 && (
-        <div className="mt-6 overflow-x-auto rounded-lg border border-[#22222C] sm:mt-8">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="bg-[#1A1A22] text-[#9A99A6]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Added</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoadingList && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-[#5C5B66]">
-                    Loading accounts...
-                  </td>
-                </tr>
-              )}
+      {/* View 1: accounts table */}
+      {viewState === 1 && (
+        <>
+          {listError && (
+            <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger sm:mt-8">
+              {listError}
+            </div>
+          )}
 
-              {!isLoadingList && listError && (
+          <div className="mt-6 overflow-x-auto rounded-lg border border-bg-border sm:mt-8">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-bg-panel text-text-secondary">
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-[#FF8A8A]">
-                    {listError}
-                  </td>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Added</th>
+                  <th className="px-4 py-3" />
                 </tr>
-              )}
-
-              {!isLoadingList && !listError && accounts.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-[#5C5B66]">
-                    No accounts yet.
-                  </td>
-                </tr>
-              )}
-
-              {!isLoadingList &&
-                !listError &&
-                accounts.map((account) => (
-                  <tr
-                    key={account.id}
-                    className="border-t border-[#22222C] text-[#F4F3F1]"
-                  >
-                    <td className="px-4 py-3">{account.name}</td>
-                    <td className="px-4 py-3 text-[#9A99A6]">{account.email}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${
-                          account.role === "ADMIN"
-                            ? "bg-[#3A5CFF]/15 text-[#8AA5FF]"
-                            : "bg-[#22222C] text-[#9A99A6]"
-                        }`}
-                      >
-                        {account.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[#9A99A6]">
-                      {account.isActive === false ? "Inactive" : "Active"}
-                    </td>
-                    <td className="px-4 py-3 text-[#9A99A6]">
-                      {account.createdAt
-                        ? new Date(account.createdAt).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleDelete(account)}
-                        disabled={deletingId === account.id}
-                        className="rounded-md p-1.5 text-[#9A99A6] transition-colors hover:bg-[#22222C] hover:text-[#FF8A8A] disabled:opacity-50"
-                        aria-label={`Delete ${account.name}`}
-                      >
-                        <Trash2 size={16} strokeWidth={1.75} />
-                      </button>
+              </thead>
+              <tbody>
+                {isLoadingList && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-text-muted">
+                      Loading accounts…
                     </td>
                   </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+                )}
+
+                {!isLoadingList && listError && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-danger">
+                      {listError}
+                    </td>
+                  </tr>
+                )}
+
+                {!isLoadingList && !listError && accounts.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-text-muted">
+                      No accounts yet.
+                    </td>
+                  </tr>
+                )}
+
+                {!isLoadingList &&
+                  !listError &&
+                  accounts.map((account) => (
+                    <tr
+                      key={account.id}
+                      className="border-t border-bg-border text-text-primary"
+                    >
+                      <td className="px-4 py-3 font-medium">{account.name}</td>
+                      <td className="px-4 py-3 text-text-secondary">{account.email}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${
+                            account.role === "ADMIN"
+                              ? "bg-accent/15 text-accent"
+                              : "bg-bg-hover text-text-secondary"
+                          }`}
+                        >
+                          {account.role === "ADMIN" ? (
+                            <Shield size={11} strokeWidth={1.75} />
+                          ) : (
+                            <UserCog size={11} strokeWidth={1.75} />
+                          )}
+                          {account.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary">
+                        {account.isActive === false ? "Inactive" : "Active"}
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary">
+                        {account.createdAt
+                          ? new Date(account.createdAt).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setDeleteTarget(account)}
+                          className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-danger"
+                          aria-label={`Delete ${account.name}`}
+                        >
+                          <Trash2 size={16} strokeWidth={1.75} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* View 2: add account form */}
-      {state === 2 && (
-        <div className="mt-6 w-full max-w-md rounded-lg border border-[#22222C] bg-[#1A1A22] p-4 sm:mt-8 sm:p-6">
-          <h2 className="font-[Space_Grotesk] text-lg font-bold text-[#F4F3F1]">
+      {viewState === 2 && (
+        <div className="mt-6 w-full max-w-md rounded-lg border border-bg-border bg-bg-panel p-4 sm:mt-8 sm:p-6">
+          <h2 className="font-[Space_Grotesk] text-lg font-bold text-text-primary">
             Add account
           </h2>
 
           {formError && (
-            <div className="mt-4 rounded-md border border-[#3A2226] bg-[#241417] px-4 py-3 text-sm text-[#FF8A8A]">
+            <div className="mt-4 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
               {formError}
             </div>
           )}
 
           {successMessage && (
-            <div className="mt-4 rounded-md border border-[#1F3A2A] bg-[#132018] px-4 py-3 text-sm text-[#8AFFB0]">
+            <div className="mt-4 rounded-md border border-success-border bg-success-bg px-4 py-3 text-sm text-success">
               {successMessage}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-6">
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="block text-sm font-medium text-text-secondary">
                 Name
               </label>
               <input
@@ -244,12 +255,12 @@ function Employees() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Full name"
                 required
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="block text-sm font-medium text-text-secondary">
                 Email
               </label>
               <input
@@ -258,12 +269,12 @@ function Employees() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="account@vikestore.com"
                 required
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="block text-sm font-medium text-text-secondary">
                 Password
               </label>
               <input
@@ -273,18 +284,18 @@ function Employees() {
                 placeholder="At least 8 characters"
                 required
                 minLength={8}
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors placeholder:text-[#5C5B66] focus:border-[#3A5CFF]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-accent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#9A99A6]">
+              <label className="block text-sm font-medium text-text-secondary">
                 Role
               </label>
               <select
                 value={role}
                 onChange={(event) => setRole(event.target.value as AdminRole)}
-                className="mt-2 w-full border-0 border-b border-[#2A2A34] bg-transparent px-0 py-2 text-[#F4F3F1] outline-none transition-colors focus:border-[#3A5CFF] [&>option]:bg-[#1A1A22]"
+                className="mt-2 w-full border-0 border-b border-bg-border bg-transparent px-0 py-2 text-text-primary outline-none transition-colors focus:border-accent [&>option]:bg-bg-panel"
               >
                 <option value="EMPLOYEE">Employee</option>
                 <option value="ADMIN">Admin</option>
@@ -296,21 +307,31 @@ function Employees() {
                 type="button"
                 onClick={handleCancel}
                 disabled={isSubmitting}
-                className="w-full rounded-md border border-[#2A2A34] px-4 py-3 font-medium text-[#F4F3F1] transition-colors hover:bg-[#22222C] disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-md border border-bg-border px-4 py-3 font-medium text-text-secondary transition-colors hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-md bg-[#3A5CFF] px-4 py-3 font-medium text-[#F4F3F1] transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-3 font-medium text-white transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
-                {isSubmitting ? "Adding..." : "Create"}
+                {!isSubmitting && <UserPlus size={15} strokeWidth={1.75} />}
+                {isSubmitting ? "Adding…" : "Create"}
               </button>
             </div>
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete account"
+        message={`Delete ${deleteTarget?.name} (${deleteTarget?.email})? This can't be undone.`}
+        isLoading={isDeletingOne}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
