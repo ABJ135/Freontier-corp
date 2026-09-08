@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
+
 
 function Login() {
   const navigate = useNavigate();
@@ -133,6 +134,14 @@ function Login() {
                 Remember me on this device
               </span>
             </label>
+            <div className="flex justify-end">
+              <Link
+                to="/admin/forgot-password"
+                className="text-sm text-[#3A5CFF] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <button
               type="submit"

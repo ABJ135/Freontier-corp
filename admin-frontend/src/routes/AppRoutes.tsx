@@ -11,11 +11,15 @@ import EditProduct from "../pages/products/EditProduct";
 import InactiveCategories from "../pages/categories/InactiveCategories";
 import SettingsPage from "../pages/settings/SettingsPage";
 import InactiveProducts from "../pages/products/InactiveProducts";
+import ForgotPassword from "../pages/Password Reset/ForgotPasswordPage";
+import ResetPassword from "../pages/Password Reset/ResetPassword";
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+      <Route path="/admin/reset-password" element={<ResetPassword />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<DashboardLayout />}>

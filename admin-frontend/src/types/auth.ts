@@ -31,3 +31,21 @@ export interface CreateEmployeePayload {
   password: string;
   role: AdminRole;
 }
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
