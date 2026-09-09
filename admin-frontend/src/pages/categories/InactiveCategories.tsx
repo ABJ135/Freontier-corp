@@ -1,264 +1,251 @@
 import { useEffect, useState } from "react";
 import { isAxiosError } from "axios";
-import { ArrowLeft, Undo2, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import {
-    deleteInactiveCategoryById,
-    getInactiveCategories,
-    purgeAllInactiveCategories,
-    restoreInactiveCategoryById,
+  AlertTriangle,
+  ArrowLeft,
+  FolderTree,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  deleteInactiveCategoryById,
+  getInactiveCategories,
+  purgeAllInactiveCategories,
+  restoreInactiveCategoryById,
 } from "../../services/categoryApi";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import type { Category } from "../../types/category";
 
 function extractErrorMessage(err: unknown, fallback: string): string {
-    if (isAxiosError(err)) {
-        const data = err.response?.data;
-        if (Array.isArray(data?.message)) return data.message.join(", ");
-        return data?.message ?? fallback;
-    }
-    return fallback;
+  if (isAxiosError(err)) {
+    const data = err.response?.data;
+    if (Array.isArray(data?.message)) return data.message.join(", ");
+    return data?.message ?? fallback;
+  }
+  return fallback;
 }
 
 function InactiveCategories() {
-    const navigate = useNavigate();
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-    const [isDeletingOne, setIsDeletingOne] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [isDeletingOne, setIsDeletingOne] = useState(false);
+  const [showPurgeDialog, setShowPurgeDialog] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
-    const [showPurgeDialog, setShowPurgeDialog] = useState(false);
-    const [isPurging, setIsPurging] = useState(false);
+  const load = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setCategories(await getInactiveCategories());
+    } catch (err) {
+      setError(extractErrorMessage(err, "Could not load inactive categories."));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const [restoringId, setRestoringId] = useState<string | null>(null);
+  useEffect(() => { load(); }, []);
 
-    const load = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const data = await getInactiveCategories();
-            setCategories(data);
-        } catch (err) {
-            setError(extractErrorMessage(err, "Could not load inactive categories."));
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const handleRestore = async (cat: Category) => {
+    setRestoringId(cat.id);
+    setError(null);
+    try {
+      await restoreInactiveCategoryById(cat.id);
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (err) {
+      setError(extractErrorMessage(err, "Could not restore category."));
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
-    useEffect(() => {
-        load();
-    }, []);
+  const confirmDeleteOne = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingOne(true);
+    try {
+      await deleteInactiveCategoryById(deleteTarget.id);
+      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err) {
+      setError(extractErrorMessage(err, "Could not delete category."));
+    } finally {
+      setIsDeletingOne(false);
+    }
+  };
 
-    const handleRestore = async (category: Category) => {
-        setRestoringId(category.id);
-        setError(null);
+  const confirmPurgeAll = async () => {
+    setIsPurging(true);
+    try {
+      await purgeAllInactiveCategories();
+      setCategories([]);
+      setShowPurgeDialog(false);
+    } catch (err) {
+      setError(extractErrorMessage(err, "Could not purge categories."));
+    } finally {
+      setIsPurging(false);
+    }
+  };
 
-        try {
-            await restoreInactiveCategoryById(category.id);
-            setCategories((prev) => prev.filter((c) => c.id !== category.id));
-        } catch (err) {
-            setError(extractErrorMessage(err, "Could not restore category."));
-        } finally {
-            setRestoringId(null);
-        }
-    };
+  return (
+    <div className="px-4 py-6 sm:px-8 sm:py-8">
+      <Link to="/admin/categories" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary">
+        <ArrowLeft size={16} /> Back to Categories
+      </Link>
 
-    const confirmDeleteOne = async () => {
-        if (!deleteTarget) return;
-        setIsDeletingOne(true);
-        setError(null);
-
-        try {
-            await deleteInactiveCategoryById(deleteTarget.id);
-            setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-            setDeleteTarget(null);
-        } catch (err) {
-            setError(extractErrorMessage(err, "Could not delete category."));
-        } finally {
-            setIsDeletingOne(false);
-        }
-    };
-
-    const confirmPurgeAll = async () => {
-        setIsPurging(true);
-        setError(null);
-
-        try {
-            await purgeAllInactiveCategories();
-            setCategories([]);
-            setShowPurgeDialog(false);
-        } catch (err) {
-            setError(extractErrorMessage(err, "Could not delete all categories."));
-        } finally {
-            setIsPurging(false);
-        }
-    };
-
-    return (
-        <div className="px-4 py-6 sm:px-10 sm:py-10">
-            {/* Back link */}
-            <button
-                onClick={() => navigate("/admin/categories")}
-                className="mb-4 flex items-center gap-2 text-sm text-text-secondary transition-colors hover:text-text-primary"
-            >
-                <ArrowLeft size={15} strokeWidth={1.75} />
-                Back to categories
-            </button>
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="font-[Space_Grotesk] text-xl font-bold text-text-primary sm:text-2xl">
-                        Inactive Categories
-                    </h1>
-                    <p className="mt-1 text-sm text-text-secondary sm:text-[15px]">
-                        Categories that have been soft-deleted.
-                    </p>
-                </div>
-
-                <button
-                    onClick={() => setShowPurgeDialog(true)}
-                    disabled={isLoading || categories.length === 0}
-                    className="flex items-center justify-center gap-2 rounded-md border border-danger-border bg-danger-bg px-4 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger-bg-hover disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                    <Trash2 size={16} strokeWidth={1.75} />
-                    Delete all
-                </button>
-            </div>
-
-            {error && (
-                <div className="mt-6 rounded-md border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
-                    {error}
-                </div>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="font-[Space_Grotesk] text-2xl font-bold text-text-primary">
+              Inactive Categories
+            </h1>
+            {!isLoading && (
+              <span className="rounded-full border border-warning-border bg-warning-bg px-3 py-0.5 text-xs font-bold text-warning">
+                {categories.length} archived
+              </span>
             )}
-
-            {isLoading && (
-                <div className="mt-8 py-10 text-center text-sm text-text-muted">
-                    Loading inactive categories...
-                </div>
-            )}
-
-            {!isLoading && !error && categories.length === 0 && (
-                <div className="mt-8 rounded-lg border border-dashed border-bg-border px-6 py-14 text-center">
-                    <p className="text-sm text-text-muted">No inactive categories.</p>
-                </div>
-            )}
-
-            {!isLoading && categories.length > 0 && (
-                <>
-                    {/* Mobile: stacked cards */}
-                    <div className="mt-6 flex flex-col gap-3 sm:hidden">
-                        {categories.map((category) => (
-                            <div
-                                key={category.id}
-                                className="rounded-lg border border-bg-border bg-bg-panel p-4"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="truncate font-medium text-text-primary">
-                                            {category.name}
-                                        </p>
-                                        <p className="mt-0.5 truncate text-xs text-text-secondary">
-                                            {category.slug}
-                                        </p>
-                                        {category.description && (
-                                            <p className="mt-1 line-clamp-2 text-xs text-text-muted">
-                                                {category.description}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <button
-                                            onClick={() => handleRestore(category)}
-                                            disabled={restoringId === category.id}
-                                            className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                                            aria-label={`Restore ${category.name}`}
-                                        >
-                                            <Undo2 size={16} strokeWidth={1.75} />
-                                        </button>
-                                        <button
-                                            onClick={() => setDeleteTarget(category)}
-                                            className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-danger"
-                                            aria-label={`Delete ${category.name}`}
-                                        >
-                                            <Trash2 size={16} strokeWidth={1.75} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Desktop / tablet: table */}
-                    <div className="mt-6 hidden overflow-hidden rounded-lg border border-bg-border sm:block">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-bg-panel text-text-secondary">
-                                <tr>
-                                    <th className="px-4 py-3 font-medium">Name</th>
-                                    <th className="px-4 py-3 font-medium">Slug</th>
-                                    <th className="px-4 py-3 font-medium">Description</th>
-                                    <th className="px-4 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {categories.map((category) => (
-                                    <tr
-                                        key={category.id}
-                                        className="border-t border-bg-border text-text-primary"
-                                    >
-                                        <td className="px-4 py-3">{category.name}</td>
-                                        <td className="px-4 py-3 text-text-secondary">{category.slug}</td>
-                                        <td className="px-4 py-3 text-text-secondary">
-                                            {category.description ?? "—"}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    onClick={() => handleRestore(category)}
-                                                    disabled={restoringId === category.id}
-                                                    className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                                                    aria-label={`Restore ${category.name}`}
-                                                >
-                                                    <Undo2 size={16} strokeWidth={1.75} />
-                                                </button>
-                                                <button
-                                                    onClick={() => setDeleteTarget(category)}
-                                                    className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-bg-hover hover:text-danger"
-                                                    aria-label={`Delete ${category.name}`}
-                                                >
-                                                    <Trash2 size={16} strokeWidth={1.75} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            )}
-
-            <ConfirmDialog
-                isOpen={deleteTarget !== null}
-                title="Delete category"
-                message={`Delete "${deleteTarget?.name}" permanently? This can't be undone.`}
-                isLoading={isDeletingOne}
-                onCancel={() => setDeleteTarget(null)}
-                onConfirm={confirmDeleteOne}
-            />
-
-            <ConfirmDialog
-                isOpen={showPurgeDialog}
-                title="Delete all inactive categories"
-                message={`Permanently delete all ${categories.length} inactive categories? This can't be undone.`}
-                isLoading={isPurging}
-                onCancel={() => setShowPurgeDialog(false)}
-                onConfirm={confirmPurgeAll}
-            />
+          </div>
+          <p className="mt-1 text-sm text-text-secondary">
+            Soft-deleted categories. Restore or permanently remove them.
+          </p>
         </div>
-    );
+        <div className="flex gap-2">
+          <button onClick={load} className="rounded-lg border border-bg-border px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover">
+            <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setShowPurgeDialog(true)}
+            disabled={isLoading || categories.length === 0}
+            className="flex items-center gap-2 rounded-lg border border-danger-border bg-danger-bg px-4 py-2 text-sm font-semibold text-danger hover:bg-danger hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Trash2 size={15} /> Purge All
+          </button>
+        </div>
+      </div>
+
+      {!isLoading && categories.length > 0 && (
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning">
+          <AlertTriangle size={15} />
+          <span><strong>{categories.length} categories</strong> are archived. Purging is permanent and cannot be undone.</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger">
+          <AlertTriangle size={14} /> {error}
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="mt-12 flex flex-col items-center py-10 text-text-muted">
+          <RefreshCw size={28} className="animate-spin text-accent" />
+          <p className="mt-3 text-sm">Loading archived categories...</p>
+        </div>
+      )}
+
+      {!isLoading && !error && categories.length === 0 && (
+        <div className="mt-8 rounded-xl border border-dashed border-bg-border py-16 text-center">
+          <FolderTree size={38} className="mx-auto text-text-muted opacity-50" />
+          <p className="mt-3 text-sm font-medium text-text-primary">No inactive categories.</p>
+          <p className="mt-1 text-xs text-text-secondary">Deleted categories will appear here for recovery.</p>
+          <Link to="/admin/categories" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-bg-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-bg-hover">
+            <ArrowLeft size={13} /> Back to categories
+          </Link>
+        </div>
+      )}
+
+      {!isLoading && categories.length > 0 && (
+        <>
+          {/* Mobile cards */}
+          <div className="mt-5 flex flex-col gap-3 sm:hidden">
+            {categories.map((cat) => (
+              <div key={cat.id} className="rounded-xl border border-bg-border bg-bg-panel p-4 opacity-75">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-text-primary">{cat.name}</p>
+                    <p className="font-mono text-xs text-text-muted">{cat.slug}</p>
+                    {cat.description && (
+                      <p className="mt-1 line-clamp-1 text-xs text-text-secondary">{cat.description}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1">
+                    <button onClick={() => handleRestore(cat)} disabled={restoringId === cat.id} className="rounded-lg p-2 text-text-secondary hover:bg-success-bg hover:text-success disabled:opacity-40">
+                      <RotateCcw size={15} />
+                    </button>
+                    <button onClick={() => setDeleteTarget(cat)} className="rounded-lg p-2 text-text-secondary hover:bg-danger-bg hover:text-danger">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="mt-5 hidden overflow-hidden rounded-xl border border-bg-border sm:block">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-bg-panel text-xs text-text-secondary">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Name</th>
+                  <th className="px-5 py-3 font-medium">Slug</th>
+                  <th className="px-5 py-3 font-medium">Description</th>
+                  <th className="px-5 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((cat) => (
+                  <tr key={cat.id} className="border-t border-bg-border opacity-70 transition-opacity hover:opacity-100">
+                    <td className="px-5 py-3.5 font-semibold text-text-primary">{cat.name}</td>
+                    <td className="px-5 py-3.5 font-mono text-xs text-text-muted">{cat.slug}</td>
+                    <td className="px-5 py-3.5 text-xs text-text-secondary">{cat.description ?? "—"}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleRestore(cat)}
+                          disabled={restoringId === cat.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success hover:bg-success hover:text-white disabled:opacity-40"
+                        >
+                          {restoringId === cat.id ? <RefreshCw size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                          Restore
+                        </button>
+                        <button onClick={() => setDeleteTarget(cat)} className="rounded-lg border border-danger-border p-1.5 text-danger hover:bg-danger hover:text-white">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Permanently Delete Category"
+        message={`Delete "${deleteTarget?.name}" forever? This cannot be undone.`}
+        isLoading={isDeletingOne}
+        confirmLabel="Delete Permanently"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteOne}
+      />
+      <ConfirmDialog
+        isOpen={showPurgeDialog}
+        title="Purge All Inactive Categories"
+        message={`Permanently delete all ${categories.length} inactive categories? This cannot be undone.`}
+        isLoading={isPurging}
+        confirmLabel="Purge All"
+        onCancel={() => setShowPurgeDialog(false)}
+        onConfirm={confirmPurgeAll}
+      />
+    </div>
+  );
 }
 
 export default InactiveCategories;

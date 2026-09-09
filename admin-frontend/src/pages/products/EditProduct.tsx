@@ -96,15 +96,27 @@ function EditProduct() {
   const [isLoadingProduct, setIsLoadingProduct] = useState(!stateProduct);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [sku, setSku] = useState("");
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [compareAtPrice, setCompareAtPrice] = useState("");
-  const [stock, setStock] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [description, setDescription] = useState("");
+  const [sku, setSku] = useState(stateProduct?.sku ?? "");
+  const [name, setName] = useState(stateProduct?.name ?? "");
+  const [price, setPrice] = useState(
+    stateProduct ? centsToDollarsInput(stateProduct.priceCents) : "",
+  );
+  const [compareAtPrice, setCompareAtPrice] = useState(
+    stateProduct?.compareAtPriceCents != null
+      ? centsToDollarsInput(stateProduct.compareAtPriceCents)
+      : "",
+  );
+  const [stock, setStock] = useState(
+    stateProduct ? String(stateProduct.stock) : "",
+  );
+  const [categoryId, setCategoryId] = useState(stateProduct?.categoryId ?? "");
+  const [description, setDescription] = useState(
+    stateProduct?.description ?? "",
+  );
 
-  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
+  const [existingImages, setExistingImages] = useState<ProductImage[]>(
+    stateProduct?.images ?? [],
+  );
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [busyImageId, setBusyImageId] = useState<string | null>(null);

@@ -13,6 +13,11 @@ import SettingsPage from "../pages/settings/SettingsPage";
 import InactiveProducts from "../pages/products/InactiveProducts";
 import ForgotPassword from "../pages/Password Reset/ForgotPasswordPage";
 import ResetPassword from "../pages/Password Reset/ResetPassword";
+import Orders from "../pages/orders/Orders";
+import OrderDetail from "../pages/orders/OrderDetail";
+import Customers from "../pages/customers/Customers";
+import InactiveCustomers from "../pages/customers/InactiveCustomers";
+import CustomerDetail from "../pages/customers/CustomerDetail";
 
 function AppRoutes() {
   return (
@@ -38,8 +43,16 @@ function AppRoutes() {
             <Route path="inactive" element={<InactiveCategories />} />
           </Route>
 
-          <Route path="orders" element={<Dashboard />} />
-          <Route path="customers" element={<Dashboard />} />
+          <Route path="orders">
+            <Route index element={<Orders />} />
+            <Route path=":id" element={<OrderDetail />} />
+          </Route>
+
+          <Route path="customers">
+            <Route index element={<Customers />} />
+            <Route path="inactive" element={<InactiveCustomers />} />
+            <Route path=":id" element={<CustomerDetail />} />
+          </Route>
 
           <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
             <Route path="employees" element={<Employees />} />

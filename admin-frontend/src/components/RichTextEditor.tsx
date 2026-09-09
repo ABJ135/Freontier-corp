@@ -29,12 +29,16 @@ const dividerClasses = "mx-1 h-5 w-px bg-[#E4E4E9] dark:bg-[#2A2A34]";
  */
 function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (editorRef.current && !hasInitialized.current) {
-      editorRef.current.innerHTML = value || "";
-      hasInitialized.current = true;
+    if (!editorRef.current) return;
+    const normalizedValue = value || "";
+    const isFocused =
+      editorRef.current === document.activeElement ||
+      editorRef.current.contains(document.activeElement);
+
+    if (editorRef.current.innerHTML !== normalizedValue && !isFocused) {
+      editorRef.current.innerHTML = normalizedValue;
     }
   }, [value]);
 

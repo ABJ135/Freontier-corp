@@ -39,8 +39,7 @@ function DashboardLayout() {
 
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  // Close the drawer whenever the route changes (covers programmatic
-  // navigation too, e.g. the logout button's navigate() call below).
+  // Close the drawer whenever the route changes.
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname]);
@@ -81,19 +80,23 @@ function DashboardLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg font-[Inter]">
-      {/* Mobile top bar */}
+      {/* Mobile top bar — hamburger is on the LEFT to match left-side drawer */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-bg-border bg-bg-panel px-4 md:hidden">
-        <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-text-secondary">
-          Vikestore
-        </span>
-        <button
-          type="button"
-          onClick={() => setIsMobileNavOpen(true)}
-          aria-label="Open menu"
-          className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-        >
-          <Menu size={20} strokeWidth={1.75} />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsMobileNavOpen(true)}
+            aria-label="Open menu"
+            className="rounded-md p-2 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+          >
+            <Menu size={20} strokeWidth={1.75} />
+          </button>
+          <span className="font-[Space_Grotesk] text-sm font-semibold tracking-wide text-text-primary">
+            Vikestore
+          </span>
+        </div>
+        {/* Right side: admin name on mobile bar */}
+        <span className="text-xs text-text-muted">{admin?.name}</span>
       </div>
 
       {/* Backdrop */}
@@ -105,7 +108,7 @@ function DashboardLayout() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — slides in from left on mobile */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col justify-between border-r border-bg-border bg-bg-panel px-5 py-8 shadow-sm transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 md:shadow-sm ${
           isMobileNavOpen ? "translate-x-0" : "-translate-x-full"
@@ -116,7 +119,7 @@ function DashboardLayout() {
       >
         <div>
           <div className="flex items-center justify-between px-2">
-            <span className="font-[Space_Grotesk] text-sm font-medium tracking-wide text-text-secondary">
+            <span className="font-[Space_Grotesk] text-sm font-semibold tracking-wide text-text-primary">
               Vikestore
             </span>
             <button
