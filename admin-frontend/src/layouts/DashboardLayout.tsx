@@ -7,6 +7,7 @@ import {
   ShoppingCart,
   Users,
   UserCog,
+  Truck,
   Settings,
   LogOut,
   Menu,
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { to: "/admin/customers", label: "Customers", icon: Users },
   { to: "/admin/employees", label: "Employees", icon: UserCog, roles: ["ADMIN"] },
+  { to: "/admin/shipping-partners", label: "Shipping Partners", icon: Truck, roles: ["ADMIN"] },
 ];
 
 function DashboardLayout() {

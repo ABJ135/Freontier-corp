@@ -18,6 +18,7 @@ import OrderDetail from "../pages/orders/OrderDetail";
 import Customers from "../pages/customers/Customers";
 import InactiveCustomers from "../pages/customers/InactiveCustomers";
 import CustomerDetail from "../pages/customers/CustomerDetail";
+import ShippingPartners from "../pages/shipping-partners/ShippingPartners";
 
 function AppRoutes() {
   return (
@@ -56,6 +57,7 @@ function AppRoutes() {
 
           <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
             <Route path="employees" element={<Employees />} />
+            <Route path="shipping-partners" element={<ShippingPartners />} />
           </Route>
           <Route path="settings" element={<SettingsPage />} />
         </Route>

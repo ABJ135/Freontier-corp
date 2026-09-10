@@ -7,6 +7,8 @@ export interface Admin {
   role: AdminRole;
   isActive?: boolean;
   createdAt?: string;
+  notifyLowStock?: boolean;
+  notifyNewOrder?: boolean;
 }
 
 export interface LoginPayload {
@@ -49,3 +51,8 @@ export interface ResetPasswordPayload {
 export interface ResetPasswordResponse {
   message: string;
 }
+
+export interface UpdatePreferencesPayload {
+  notifyLowStock?: boolean;
+  notifyNewOrder?: boolean;
+}

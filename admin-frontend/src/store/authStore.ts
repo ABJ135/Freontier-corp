@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { tokenStorage } from "../lib/tokenStorage";
-import { loginUser } from "../services/authApi";
+import { loginUser, logoutAdmin } from "../services/authApi";
 import type { Admin, LoginPayload } from "../types/auth";
 import { isAxiosError } from "axios";
 
@@ -49,9 +49,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    // Best-effort: invalidate the session on the server before clearing storage.
+    const refreshToken = tokenStorage.getRefreshToken();
+    if (refreshToken) {
+      logoutAdmin(refreshToken).catch(() => {
+        // Silently ignore — local session is cleared regardless.
+      });
+    }
     tokenStorage.clear();
     set({ admin: null, isAuthenticated: false });
   },
 
   clearError: () => set({ error: null }),
-}));
+}));

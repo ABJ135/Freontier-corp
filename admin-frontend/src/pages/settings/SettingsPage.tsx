@@ -8,10 +8,18 @@ import {
   ShieldCheck,
   Sun,
   User,
+  Store,
+  Mail,
+  DollarSign,
+  Image,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuthStore } from "../../store/authStore";
-import api from "../../lib/api";
+import { getAdminProfile, updateAdminPreferences } from "../../services/authApi";
+import { getStoreSettings, updateStoreSettings } from "../../services/settingsApi";
+import type { StoreSettings } from "../../types/settings";
 
 function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -21,13 +29,25 @@ function SettingsPage() {
   const [notifyLowStock, setNotifyLowStock] = useState<boolean>(true);
   const [notifyNewOrder, setNotifyNewOrder] = useState<boolean>(true);
 
-  // Fetch admin preferences on mount from backend if available
+  // ── Store Config state ──────────────────────────────────────────
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
+  const [storeForm, setStoreForm] = useState({
+    storeName: "",
+    supportEmail: "",
+    currency: "",
+    logoUrl: "",
+  });
+  const [storeLoading, setStoreLoading] = useState(false);
+  const [storeSaving, setStoreSaving] = useState(false);
+  const [storeSaved, setStoreSaved] = useState(false);
+  const [storeError, setStoreError] = useState<string | null>(null);
+
+  // Fetch admin preferences on mount
   useEffect(() => {
     let isMounted = true;
     async function fetchPreferences() {
       try {
-        const response = await api.get("/auth/admin/me");
-        const data = response.data;
+        const data = await getAdminProfile();
         if (isMounted && data) {
           if (typeof data.notifyLowStock === "boolean") {
             setNotifyLowStock(data.notifyLowStock);
@@ -41,16 +61,39 @@ function SettingsPage() {
       }
     }
     fetchPreferences();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
+  }, []);
+
+  // Fetch store settings on mount
+  useEffect(() => {
+    let isMounted = true;
+    setStoreLoading(true);
+    getStoreSettings()
+      .then((data) => {
+        if (!isMounted) return;
+        setStoreSettings(data);
+        setStoreForm({
+          storeName: data.storeName ?? "",
+          supportEmail: data.supportEmail ?? "",
+          currency: data.currency ?? "",
+          logoUrl: data.logoUrl ?? "",
+        });
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setStoreError("Failed to load store settings.");
+          console.warn(err);
+        }
+      })
+      .finally(() => { if (isMounted) setStoreLoading(false); });
+    return () => { isMounted = false; };
   }, []);
 
   const handleToggleLowStock = async () => {
     const nextVal = !notifyLowStock;
     setNotifyLowStock(nextVal);
     try {
-      await api.patch("/auth/admin/preferences", { notifyLowStock: nextVal });
+      await updateAdminPreferences({ notifyLowStock: nextVal });
     } catch (error) {
       console.warn("Failed to save low stock preference to server:", error);
     }
@@ -60,9 +103,31 @@ function SettingsPage() {
     const nextVal = !notifyNewOrder;
     setNotifyNewOrder(nextVal);
     try {
-      await api.patch("/auth/admin/preferences", { notifyNewOrder: nextVal });
+      await updateAdminPreferences({ notifyNewOrder: nextVal });
     } catch (error) {
       console.warn("Failed to save new order preference to server:", error);
+    }
+  };
+
+  const handleStoreSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStoreSaving(true);
+    setStoreError(null);
+    try {
+      const updated = await updateStoreSettings({
+        storeName: storeForm.storeName || undefined,
+        supportEmail: storeForm.supportEmail || undefined,
+        currency: storeForm.currency || undefined,
+        logoUrl: storeForm.logoUrl || undefined,
+      });
+      setStoreSettings(updated);
+      setStoreSaved(true);
+      setTimeout(() => setStoreSaved(false), 2500);
+    } catch (err) {
+      setStoreError("Failed to save store settings. Please try again.");
+      console.warn(err);
+    } finally {
+      setStoreSaving(false);
     }
   };
 
@@ -97,6 +162,87 @@ function SettingsPage() {
               </span>
             </div>
           </div>
+        </SettingsSection>
+
+        {/* ── Store Configuration ── */}
+        <SettingsSection
+          title="Store Configuration"
+          description="Manage your store's public details"
+          icon={<Store size={17} className="text-violet-500" />}
+        >
+          {storeLoading ? (
+            <div className="flex items-center gap-2 px-5 py-6 text-sm text-text-muted">
+              <Loader2 size={16} className="animate-spin" />
+              Loading store settings…
+            </div>
+          ) : (
+            <form onSubmit={handleStoreSave} className="space-y-0">
+              <StoreField
+                id="storeName"
+                label="Store Name"
+                description="Displayed in emails and the storefront"
+                icon={<Store size={15} className="text-text-secondary" />}
+                value={storeForm.storeName}
+                onChange={(v) => setStoreForm((f) => ({ ...f, storeName: v }))}
+                placeholder="Vikestore"
+                maxLength={100}
+              />
+              <StoreField
+                id="supportEmail"
+                label="Support Email"
+                description="Used for order confirmations and support"
+                icon={<Mail size={15} className="text-text-secondary" />}
+                value={storeForm.supportEmail}
+                onChange={(v) => setStoreForm((f) => ({ ...f, supportEmail: v }))}
+                placeholder="support@vikestore.com"
+                type="email"
+                maxLength={254}
+              />
+              <StoreField
+                id="currency"
+                label="Currency Code"
+                description="ISO 4217 code, e.g. USD, EUR, PKR"
+                icon={<DollarSign size={15} className="text-text-secondary" />}
+                value={storeForm.currency}
+                onChange={(v) => setStoreForm((f) => ({ ...f, currency: v }))}
+                placeholder="USD"
+                maxLength={10}
+              />
+              <StoreField
+                id="logoUrl"
+                label="Logo URL"
+                description="Full URL to your store's logo image"
+                icon={<Image size={15} className="text-text-secondary" />}
+                value={storeForm.logoUrl}
+                onChange={(v) => setStoreForm((f) => ({ ...f, logoUrl: v }))}
+                placeholder="https://cdn.example.com/logo.png"
+                type="url"
+                maxLength={2048}
+              />
+              {storeError && (
+                <p className="px-5 py-2 text-xs font-medium text-danger">{storeError}</p>
+              )}
+              <div className="flex items-center justify-between border-t border-bg-border/60 px-5 py-4">
+                {storeSaved ? (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-success">
+                    <CheckCircle size={14} /> Saved successfully
+                  </span>
+                ) : (
+                  <span className="text-xs text-text-muted">
+                    {storeSettings ? `Last updated: ${new Date(storeSettings.updatedAt ?? "").toLocaleDateString()}` : ""}
+                  </span>
+                )}
+                <button
+                  type="submit"
+                  disabled={storeSaving}
+                  className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {storeSaving && <Loader2 size={13} className="animate-spin" />}
+                  {storeSaving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          )}
         </SettingsSection>
 
         {/* ── Appearance section ── */}
@@ -230,6 +376,53 @@ function SettingsRow({
         </div>
       </div>
       <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function StoreField({
+  id,
+  label,
+  description,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  maxLength,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  maxLength?: number;
+}) {
+  return (
+    <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-bg-border bg-bg text-text-secondary">
+          {icon}
+        </div>
+        <div>
+          <label htmlFor={id} className="text-sm font-medium text-text-primary">
+            {label}
+          </label>
+          <p className="text-xs text-text-muted">{description}</p>
+        </div>
+      </div>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="mt-2 w-full rounded-lg border border-bg-border bg-bg px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:mt-0 sm:w-60"
+      />
     </div>
   );
 }
