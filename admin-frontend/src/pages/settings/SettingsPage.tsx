@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Bell,
   Globe,
@@ -11,14 +11,15 @@ import {
   Store,
   Mail,
   DollarSign,
-  Image,
   Loader2,
   CheckCircle,
+  Upload,
+  X,
 } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuthStore } from "../../store/authStore";
 import { getAdminProfile, updateAdminPreferences } from "../../services/authApi";
-import { getStoreSettings, updateStoreSettings } from "../../services/settingsApi";
+import { getStoreSettings, updateStoreSettings, uploadStoreLogo } from "../../services/settingsApi";
 import type { StoreSettings } from "../../types/settings";
 
 function SettingsPage() {
@@ -41,6 +42,8 @@ function SettingsPage() {
   const [storeSaving, setStoreSaving] = useState(false);
   const [storeSaved, setStoreSaved] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   // Fetch admin preferences on mount
   useEffect(() => {
@@ -118,7 +121,6 @@ function SettingsPage() {
         storeName: storeForm.storeName || undefined,
         supportEmail: storeForm.supportEmail || undefined,
         currency: storeForm.currency || undefined,
-        logoUrl: storeForm.logoUrl || undefined,
       });
       setStoreSettings(updated);
       setStoreSaved(true);
@@ -128,6 +130,31 @@ function SettingsPage() {
       console.warn(err);
     } finally {
       setStoreSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    setLogoUploading(true);
+    setLogoError(null);
+    try {
+      const updated = await uploadStoreLogo(file);
+      setStoreSettings(updated);
+    } catch (err) {
+      setLogoError("Logo upload failed. Please try again.");
+      console.warn(err);
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleLogoRemove = async () => {
+    setLogoError(null);
+    try {
+      const updated = await updateStoreSettings({ logoUrl: "" });
+      setStoreSettings(updated);
+    } catch (err) {
+      setLogoError("Failed to remove logo.");
+      console.warn(err);
     }
   };
 
@@ -208,17 +235,21 @@ function SettingsPage() {
                 placeholder="USD"
                 maxLength={10}
               />
-              <StoreField
-                id="logoUrl"
-                label="Logo URL"
-                description="Full URL to your store's logo image"
-                icon={<Image size={15} className="text-text-secondary" />}
-                value={storeForm.logoUrl}
-                onChange={(v) => setStoreForm((f) => ({ ...f, logoUrl: v }))}
-                placeholder="https://cdn.example.com/logo.png"
-                type="url"
-                maxLength={2048}
-              />
+
+              {/* Logo Upload */}
+              <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-text-primary">Store Logo</p>
+                  <p className="text-xs text-text-muted">Uploaded to Cloudinary · PNG, JPG, SVG, WebP</p>
+                </div>
+                <LogoUpload
+                  logoUrl={storeSettings?.logoUrl ?? null}
+                  uploading={logoUploading}
+                  error={logoError}
+                  onUpload={handleLogoUpload}
+                  onRemove={handleLogoRemove}
+                />
+              </div>
               {storeError && (
                 <p className="px-5 py-2 text-xs font-medium text-danger">{storeError}</p>
               )}
@@ -456,6 +487,96 @@ function Toggle({
         }`}
       />
     </button>
+  );
+}
+
+function LogoUpload({
+  logoUrl,
+  uploading,
+  error,
+  onUpload,
+  onRemove,
+}: {
+  logoUrl: string | null;
+  uploading: boolean;
+  error: string | null;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onUpload(file);
+      // Reset input so the same file can be re-selected if needed
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex items-center gap-3">
+        {/* Preview / placeholder */}
+        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-bg-border bg-bg-hover">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Store logo"
+              className="h-full w-full object-contain p-1"
+            />
+          ) : (
+            <Upload size={20} className="text-text-muted" />
+          )}
+          {/* Spinner overlay during upload */}
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-bg/70">
+              <Loader2 size={18} className="animate-spin text-accent" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          {/* Upload button */}
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => inputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-bg-border bg-bg px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Upload size={12} />
+            {logoUrl ? "Change Logo" : "Upload Logo"}
+          </button>
+
+          {/* Remove button — only shown when a logo exists */}
+          {logoUrl && !uploading && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-danger-border hover:bg-danger-bg hover:text-danger"
+            >
+              <X size={12} />
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <p className="text-xs font-medium text-danger">{error}</p>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+        className="hidden"
+        onChange={handleFileChange}
+        aria-label="Upload store logo"
+      />
+    </div>
   );
 }
 
