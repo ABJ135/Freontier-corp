@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import {
   ArrowLeft,
+  ArrowUpRight,
   Calendar,
   CreditCard,
   Mail,
@@ -12,6 +13,7 @@ import {
   RefreshCw,
   User,
   Check,
+  Clock,
 } from "lucide-react";
 import { getOrder, updateOrderStatus } from "../../services/orderApi";
 import type { Order, OrderStatus } from "../../types/order";
@@ -42,6 +44,15 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatDateShort(dateStr: string): string {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function extractErrorMessage(err: unknown, fallback: string): string {
   if (isAxiosError(err)) {
     const data = err.response?.data;
@@ -49,6 +60,19 @@ function extractErrorMessage(err: unknown, fallback: string): string {
     return data?.message ?? fallback;
   }
   return fallback;
+}
+
+/** Parse shipping address from either the linked object or the JSON snapshot */
+function resolveShippingAddress(order: Order) {
+  if (order.shippingAddress) return order.shippingAddress;
+  if (order.shippingAddressSnapshot) {
+    try {
+      return JSON.parse(order.shippingAddressSnapshot);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function OrderDetail() {
@@ -121,6 +145,16 @@ function OrderDetail() {
       </div>
     );
   }
+
+  // Resolve customer info — backend now returns nested order.customer object
+  const customerName =
+    order.customer?.name || order.customerName || "Unknown Customer";
+  const customerEmail = order.customer?.email || order.customerEmail;
+  const customerPhone = order.customer?.phone || order.customerPhone;
+  const customerId = order.customer?.id || order.userId;
+  const customerSince = order.customer?.createdAt;
+
+  const shippingAddr = resolveShippingAddress(order);
 
   return (
     <div className="px-4 py-6 sm:px-10 sm:py-10">
@@ -259,59 +293,96 @@ function OrderDetail() {
 
         {/* Right Column: Customer Details & Financial Summary */}
         <div className="flex flex-col gap-6">
-          {/* Customer Details */}
+          {/* Customer Card */}
           <div className="rounded-lg border border-bg-border bg-bg-panel p-5">
-            <div className="flex items-center gap-2 border-b border-bg-border pb-4 font-[Space_Grotesk] font-semibold text-text-primary">
-              <User size={18} className="text-accent" />
-              Customer Information
+            <div className="flex items-center justify-between border-b border-bg-border pb-4">
+              <div className="flex items-center gap-2 font-[Space_Grotesk] font-semibold text-text-primary">
+                <User size={18} className="text-accent" />
+                Customer
+              </div>
+              {customerId && (
+                <Link
+                  to={`/admin/customers/${customerId}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-bg-border px-2.5 py-1 text-[11px] font-semibold text-accent transition-colors hover:bg-bg-hover"
+                  title="Open customer profile"
+                >
+                  View Profile
+                  <ArrowUpRight size={11} />
+                </Link>
+              )}
             </div>
 
             <div className="mt-4 space-y-3 text-xs text-text-secondary">
+              {/* Name + member since */}
               <div className="flex items-start gap-2.5">
                 <User size={15} className="mt-0.5 text-text-muted shrink-0" />
                 <div>
-                  <span className="block font-semibold text-text-primary">
-                    {order.customerName || "Guest Customer"}
+                  <span className="block font-semibold text-text-primary text-sm">
+                    {customerName}
                   </span>
-                  {order.userId && (
-                    <span className="text-[11px] text-text-muted">
-                      User ID: {order.userId}
+                  {customerSince && (
+                    <span className="mt-0.5 flex items-center gap-1 text-[11px] text-text-muted">
+                      <Clock size={10} />
+                      Member since {formatDateShort(customerSince)}
                     </span>
                   )}
                 </div>
               </div>
 
-              {order.customerEmail && (
+              {/* Email */}
+              {customerEmail && (
                 <div className="flex items-center gap-2.5">
                   <Mail size={15} className="text-text-muted shrink-0" />
-                  <span className="truncate">{order.customerEmail}</span>
+                  <span className="truncate">{customerEmail}</span>
                 </div>
               )}
 
-              {order.customerPhone && (
+              {/* Phone */}
+              {customerPhone && (
                 <div className="flex items-center gap-2.5">
                   <Phone size={15} className="text-text-muted shrink-0" />
-                  <span>{order.customerPhone}</span>
+                  <span>{customerPhone}</span>
                 </div>
               )}
 
-              {order.shippingAddress && (
+              {/* Shipping Address */}
+              {shippingAddr && (
                 <div className="flex items-start gap-2.5 pt-2 border-t border-bg-border/60">
                   <MapPin size={15} className="mt-0.5 text-text-muted shrink-0" />
                   <div>
-                    <span className="block font-medium text-text-primary">
-                      Shipping Address:
+                    <span className="block font-medium text-text-primary mb-1">
+                      {shippingAddr.label
+                        ? `Ship to: ${shippingAddr.label}`
+                        : "Shipping Address"}
                     </span>
-                    <span className="mt-0.5 block text-text-secondary whitespace-pre-line">
-                      {order.shippingAddress}
+                    <span className="block text-text-secondary leading-relaxed">
+                      {shippingAddr.fullName}
+                      <br />
+                      {shippingAddr.street}
+                      <br />
+                      {shippingAddr.city}, {shippingAddr.state}{" "}
+                      {shippingAddr.postalCode}
+                      <br />
+                      {shippingAddr.country}
                     </span>
+                    {shippingAddr.phone && (
+                      <span className="mt-1 block text-text-muted">
+                        📞 {shippingAddr.phone}
+                      </span>
+                    )}
                   </div>
                 </div>
+              )}
+
+              {!customerEmail && !customerPhone && !shippingAddr && (
+                <p className="text-[11px] text-text-muted italic">
+                  No additional contact details recorded.
+                </p>
               )}
             </div>
           </div>
 
-          {/* Payment / Summary Card */}
+          {/* Order Summary Card */}
           <div className="rounded-lg border border-bg-border bg-bg-panel p-5">
             <div className="flex items-center gap-2 border-b border-bg-border pb-4 font-[Space_Grotesk] font-semibold text-text-primary">
               <CreditCard size={18} className="text-accent" />
@@ -332,7 +403,9 @@ function OrderDetail() {
 
               <div className="mt-3 flex justify-between border-t border-bg-border pt-3 text-sm font-bold text-text-primary">
                 <span>Total Amount</span>
-                <span className="text-accent">${centsToDollars(order.totalCents)}</span>
+                <span className="text-accent">
+                  ${centsToDollars(order.totalCents)}
+                </span>
               </div>
             </div>
           </div>

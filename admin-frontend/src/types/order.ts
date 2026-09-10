@@ -21,14 +21,37 @@ export interface OrderItem {
   product?: OrderItemProduct;
 }
 
+export interface OrderShippingAddress {
+  id: string;
+  label?: string | null;
+  fullName: string;
+  phone?: string | null;
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
 export interface Order {
   id: string;
   orderNumber?: string;
+  // Nested customer object from backend
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    createdAt?: string;
+  } | null;
+  // Legacy flat fields (kept for backward compat)
   userId?: string | null;
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
-  shippingAddress?: string;
+  // Shipping
+  shippingAddress?: OrderShippingAddress | null;
+  shippingAddressSnapshot?: string | null; // JSON string snapshot
   status: OrderStatus;
   totalCents: number;
   items: OrderItem[];
@@ -39,3 +62,4 @@ export interface Order {
 export interface UpdateOrderStatusPayload {
   status: OrderStatus;
 }
+
